@@ -147,13 +147,17 @@ public class Index {
 				String line;
 				while ((line = reader.readLine()) != null) {
 					String[] tokens = line.trim().split("\\s+");
-					int termId = 1;
 					for (String token : tokens) {
 						/*
 						 * TODO: Your code here For each term, build up a list of documents in which the term occurs
 						 */
-						termDict.put(token, termDict.getOrDefault(token, 0) + 1);
- 						postingDict.put(termId++, new Pair<Long, Integer>((long) 0, 0));
+						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size()));
+						int termId = termDict.get(token);
+						Pair<Long, Integer> pair = postingDict.get(termId);
+						if (pair == null)
+							pair = new Pair<Long, Integer>(0L, 0);
+						pair.setSecond(pair.getSecond() + 1);
+ 						postingDict.put(termId, pair);
 					}
 				}
 				reader.close();
