@@ -146,19 +146,23 @@ public class Index {
 
 				BufferedReader reader = new BufferedReader(new FileReader(file));
 				String line;
+				List<String> readTokens = new ArrayList<String>(); // save tokens already read
 				while ((line = reader.readLine()) != null) {
 					String[] tokens = line.trim().split("\\s+");
 					for (String token : tokens) {
 						/*
 						 * TODO: Your code here For each term, build up a list of documents in which the term occurs
 						 */
+						if (readTokens.contains(token))
+							continue; // we don't care duplicates
+						readTokens.add(token);
 						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size())); // assign term ID in increasing manner
 						Integer termId = termDict.get(token);
 						Pair<Long, Integer> pair = postingDict.get(termId);
 						if (pair == null)
 							pair = new Pair<Long, Integer>(0L, 0);
 						pair.setSecond(pair.getSecond() + 1);
- 						postingDict.put(termId, pair); // TODO: WRONG
+ 						postingDict.put(termId, pair); // TODO: File position WRONG
 					}
 				}
 				reader.close();
