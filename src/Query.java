@@ -120,8 +120,15 @@ public class Query {
 		 * no results found
 		 * 
 		 */
-
-		return "o";
+		if (res == null)
+			return "no results found";
+		List<String> fileNames = new ArrayList<String>();
+		for (Integer docId : res) {
+			String fileName = docDict.get(docId);
+			fileNames.add(fileName);
+		}
+		Collections.sort(fileNames);
+		return String.join(" ", fileNames);
 	}
 
 	public static void main(String[] args) throws IOException {

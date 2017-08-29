@@ -138,6 +138,7 @@ public class Index {
 			for (File file : filelist) {
 				++totalFileCount;
 				String fileName = block.getName() + "/" + file.getName();
+				System.out.println(fileName);
 
 				// use pre-increment to ensure docID > 0
 				int docId = ++docIdCounter;
@@ -151,13 +152,13 @@ public class Index {
 						/*
 						 * TODO: Your code here For each term, build up a list of documents in which the term occurs
 						 */
-						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size()));
-						int termId = termDict.get(token);
+						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size())); // assign term ID in increasing manner
+						Integer termId = termDict.get(token);
 						Pair<Long, Integer> pair = postingDict.get(termId);
 						if (pair == null)
 							pair = new Pair<Long, Integer>(0L, 0);
 						pair.setSecond(pair.getSecond() + 1);
- 						postingDict.put(termId, pair);
+ 						postingDict.put(termId, pair); // TODO: WRONG
 					}
 				}
 				reader.close();
