@@ -160,9 +160,8 @@ public class Index {
 						Integer termId = termDict.get(token);
 						Pair<Long, Integer> pair = postingDict.get(termId);
 						if (pair == null)
-							pair = new Pair<Long, Integer>(0L, 0);
+							postingDict.put(termId, pair = new Pair<Long, Integer>(0L, 0));
 						pair.setSecond(pair.getSecond() + 1);
- 						postingDict.put(termId, pair); // TODO: File position WRONG
 					}
 				}
 				reader.close();
@@ -182,7 +181,16 @@ public class Index {
 
 			bfc.close();
 		}
-
+		
+		/* Assign position to each term */
+		Long position = 0L;
+		int termCount = termDict.size();
+		for (Integer termId = 1; termId <= termCount; termId++) {
+			Pair<Long, Integer> pair = postingDict.get(termId);
+			pair.setFirst(position);
+			position += pair.getSecond() * 4 + 8;
+		}
+		
 		/* Required: output total number of files. */
 		System.out.println("Total Files Indexed: " + totalFileCount);
 
