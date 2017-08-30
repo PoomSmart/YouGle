@@ -105,7 +105,7 @@ public class Query {
 		}
 		String[] tokens = query.trim().split("\\s+");
 		int termId = termDict.getOrDefault(tokens[0], -1);
-		if(termId == -1)
+		if (termId == -1)
 			return null;
 		PostingList prevList = readPosting(indexFile.getChannel(), termId);
 		PostingList currList = prevList;
@@ -116,29 +116,31 @@ public class Query {
 				return null;
 			currList = readPosting(indexFile.getChannel(), termId);
 			list = intersect(list, currList.getList());
-			if(list.isEmpty()) return null;
+			if (list.isEmpty())
+				return null;
 		}
 		return list;
 	}
-	
+
 	public static List<Integer> intersect(List<Integer> list, List<Integer> next) {
 		List<Integer> newList = new ArrayList<Integer>();
 		Iterator<Integer> iterA = list.iterator();
 		Iterator<Integer> iterB = next.iterator();
 		Integer elementA = iterA.next();
 		Integer elementB = iterB.next();
-		while(elementA != null && elementB != null) {
-			if(elementA == elementB) {
+		while (elementA != null && elementB != null) {
+			if (elementA == elementB) {
 				newList.add(elementA);
-				elementA = iterA.hasNext() ? iterA.next():null;
-				elementB = iterB.hasNext() ? iterB.next():null;
-			} else if(elementA < elementB) {
-				elementA = iterA.hasNext() ? iterA.next():null;
+				elementA = iterA.hasNext() ? iterA.next() : null;
+				elementB = iterB.hasNext() ? iterB.next() : null;
+			} else if (elementA < elementB) {
+				elementA = iterA.hasNext() ? iterA.next() : null;
 			} else {
-				elementB = iterB.hasNext() ? iterB.next():null;
+				elementB = iterB.hasNext() ? iterB.next() : null;
 			}
 		}
-		if(elementA == elementB && elementA != null && elementB != null) newList.add(elementA);
+		if (elementA == elementB && elementA != null && elementB != null)
+			newList.add(elementA);
 		return newList;
 	}
 
