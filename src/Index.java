@@ -59,10 +59,10 @@ public class Index {
 		List<Integer> docIds = posting.getList();
 		int size = docIds.size();
 		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
-		buffer.put((byte)posting.getTermId());
-		buffer.put((byte)size);
+		buffer.putInt(posting.getTermId());
+		buffer.putInt(size);
 		for (int docId : docIds)
-			buffer.put((byte)docId);
+			buffer.putInt(docId);
 		buffer.flip();
 		fc.write(buffer);
 	}
@@ -80,6 +80,21 @@ public class Index {
 		} else {
 			return null;
 		}
+	}
+
+	private static void writeByteBuffer(FileChannel fc, ByteBuffer buffer, int value) throws IOException {
+		buffer.clear();
+		buffer.putInt(value);
+		buffer.flip();
+		fc.write(buffer);
+	}
+	
+	private static void writeExcessTermsToPosting(FileChannel fc, ByteBuffer buffer, RandomAccessFile block, int termId) throws IOException {
+		writeByteBuffer(fc, buffer, termId);
+		int freq;
+		writeByteBuffer(fc, buffer, freq = block.readInt());
+		while (freq-- != 0)
+			writeByteBuffer(fc, buffer, block.readInt());
 	}
 
 	/**
@@ -168,7 +183,8 @@ public class Index {
 						if (readTokens.contains(token))
 							continue; // we don't care duplicates
 						readTokens.add(token);
-						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size())); // assign term ID in increasing manner
+						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size())); // assign term ID in
+																								// increasing manner
 						Integer termId = termDict.get(token);
 						Pair<Long, Integer> pair = postingDict.get(termId);
 						if (pair == null)
@@ -194,15 +210,10 @@ public class Index {
 			FileChannel bfcc = bfc.getChannel();
 
 			/*
-			 * TODO: Your code here Write all posting lists for all terms to file (bfc)
+			 * Write all posting lists for all terms to file (bfc)
 			 */
-			/* Assign position to each term */
-			Long position = 0L;
 			for (Integer termId = 1; termId <= termDict.size(); termId++) {
-				Pair<Long, Integer> pair = postingDict.get(termId);
-				pair.setFirst(position);
 				List<Integer> docIds = termDoc.get(termId);
-				position += docIds.size() * 4 + 8;
 				Collections.sort(docIds);
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
@@ -210,6 +221,15 @@ public class Index {
 			bfc.close();
 		}
 		
+		/* Assign position to each term */
+		Long position = 0L;
+		for (Integer termId = 1; termId <= termDict.size(); termId++) {
+			Pair<Long, Integer> pair = postingDict.get(termId);
+			pair.setFirst(position);
+			List<Integer> docIds = termDoc.get(termId);
+			position += docIds.size() * 4 + 8;
+		}
+
 		/* Required: output total number of files. */
 		System.out.println("Total Files Indexed: " + totalFileCount);
 
@@ -230,12 +250,69 @@ public class Index {
 			RandomAccessFile bf1 = new RandomAccessFile(b1, "r");
 			RandomAccessFile bf2 = new RandomAccessFile(b2, "r");
 			RandomAccessFile mf = new RandomAccessFile(combfile, "rw");
-
-			/*
-			 * TODO: Your code here Combine blocks bf1 and bf2 into our combined file, mf You will want to consider in
-			 * what order to merge the two blocks (based on term ID, perhaps?).
-			 * 
-			 */
+			FileChannel mfc = mf.getChannel();
+			long b1Ptr = 0L, b1Length = bf1.length();
+			long b2Ptr = 0L, b2Length = bf2.length();
+			int i, j, f, t1, t2, f1, f2, d1, d2;
+			long floc, cloc; // freq location, current location
+			ByteBuffer buffer = ByteBuffer.allocate(4);
+			while (((b1Ptr = bf1.getFilePointer()) < b1Length && (t1 = bf1.readInt()) != 0) && ((b2Ptr = bf2.getFilePointer()) < b2Length && (t2 = bf2.readInt()) != 0)) {
+				f1 = bf1.readInt();
+				f2 = bf2.readInt();
+				if (t1 == t2) {
+					i = j = f = 0;
+					writeByteBuffer(mfc, buffer, t1);
+					floc = mfc.position();
+					writeByteBuffer(mfc, buffer, 0);
+					while (i < f1 && j < f2) {
+						d1 = bf1.readInt();
+						d2 = bf2.readInt();
+						if (d1 < d2) {
+							writeByteBuffer(mfc, buffer, d1);
+							i++;
+						} else if (d2 < d1) {
+							writeByteBuffer(mfc, buffer, d2);
+							j++;
+						} else {
+							writeByteBuffer(mfc, buffer, d2);
+							i++;
+							j++;
+						}
+						f++;
+					}
+					while (i++ < f1) {
+						writeByteBuffer(mfc, buffer, d1 = bf1.readInt());
+						f++;
+					}
+					while (j++ < f2) {
+						writeByteBuffer(mfc, buffer, d2 = bf2.readInt());
+						f++;
+					}
+					cloc = mfc.position();
+					mfc.position(floc);
+					writeByteBuffer(mfc, buffer, f);
+					mfc.position(cloc);
+				} else {
+					if (t1 < t2) {
+						while (t1 < t2) {
+							if ((t1 = bf1.readInt()) == 0) break;
+							writeExcessTermsToPosting(mfc, buffer, bf1, t1);
+						}
+					} else {
+						while (t2 < t1) {
+							if ((t2 = bf2.readInt()) == 0) break;
+							writeExcessTermsToPosting(mfc, buffer, bf2, t2);
+						}
+					}
+				}
+			}
+			if (b1Ptr < b1Length) {
+				while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0)
+					writeExcessTermsToPosting(mfc, buffer, bf1, t1);
+			} else if (b2Ptr < b2Length) {
+				while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0)
+					writeExcessTermsToPosting(mfc, buffer, bf2, t2);
+			}
 
 			bf1.close();
 			bf2.close();
