@@ -8,21 +8,15 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.Vector;
 
 public class Index {
 
@@ -35,7 +29,7 @@ public class Index {
 	// Block queue
 	private static LinkedList<File> blockQueue = new LinkedList<File>();
 	// Term id -> doc id list
-	private static Map<Integer, List<Integer>> termDoc = new TreeMap<Integer, List<Integer>>();
+	private static Map<Integer, Set<Integer>> termDoc = new TreeMap<Integer, Set<Integer>>();
 
 	// Total file counter
 	private static int totalFileCount = 0;
@@ -165,7 +159,7 @@ public class Index {
 			for (File file : filelist) {
 				++totalFileCount;
 				String fileName = block.getName() + "/" + file.getName();
-				System.out.println(fileName);
+//				System.out.println(fileName);
 
 				// use pre-increment to ensure docID > 0
 				int docId = ++docIdCounter;
@@ -173,29 +167,18 @@ public class Index {
 
 				BufferedReader reader = new BufferedReader(new FileReader(file));
 				String line;
-				List<String> readTokens = new ArrayList<String>(); // save tokens already read
 				while ((line = reader.readLine()) != null) {
 					String[] tokens = line.trim().split("\\s+");
 					for (String token : tokens) {
-						/*
-						 * TODO: Your code here For each term, build up a list of documents in which the term occurs
-						 */
-						if (readTokens.contains(token))
-							continue; // we don't care duplicates
-						readTokens.add(token);
 						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size())); // assign term ID in
 																								// increasing manner
 						Integer termId = termDict.get(token);
-						Pair<Long, Integer> pair = postingDict.get(termId);
-						if (pair == null)
-							postingDict.put(termId, pair = new Pair<Long, Integer>(0L, 0));
-						pair.setSecond(pair.getSecond() + 1);
-						List<Integer> docIds = termDoc.get(termId);
+						Set<Integer> docIds = termDoc.get(termId);
 						if (docIds == null)
-							termDoc.put(termId, docIds = new ArrayList<Integer>());
-						if (!docIds.contains(docId))
-							docIds.add(docId);
+							termDoc.put(termId, docIds = new TreeSet<Integer>());
+						docIds.add(docId);
 					}
+					tokens = null;
 				}
 				reader.close();
 			}
@@ -212,23 +195,32 @@ public class Index {
 			/*
 			 * Write all posting lists for all terms to file (bfc)
 			 */
+			System.out.println("DEBUG: Write posting start");
 			for (Integer termId = 1; termId <= termDict.size(); termId++) {
-				List<Integer> docIds = termDoc.get(termId);
-				Collections.sort(docIds);
-				writePosting(bfcc, new PostingList(termId, docIds));
+				Set<Integer> docIds = termDoc.get(termId);
+				List<Integer> docIds2 = new Vector<Integer>(docIds);
+				writePosting(bfcc, new PostingList(termId, docIds2));
+				docIds = null;
 			}
+			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();
 		}
 		
-		/* Assign position to each term */
+		/* Assign position and document frequency to each term */
+		System.out.println("DEBUG: Assign start");
 		Long position = 0L;
-		for (Integer termId = 1; termId <= termDict.size(); termId++) {
+		for (Integer termId = 1; termId <= (wordIdCounter = termDict.size()); termId++) {
 			Pair<Long, Integer> pair = postingDict.get(termId);
+			if (pair == null)
+				postingDict.put(termId, pair = new Pair<Long, Integer>(0L, 0));
 			pair.setFirst(position);
-			List<Integer> docIds = termDoc.get(termId);
-			position += docIds.size() * 4 + 8;
+			Set<Integer> docIds = termDoc.get(termId);
+			int docFreq = docIds.size();
+			position += docFreq * 4 + 8;
+			pair.setSecond(docFreq);
 		}
+		System.out.println("DEBUG: Assign done");
 
 		/* Required: output total number of files. */
 		System.out.println("Total Files Indexed: " + totalFileCount);
@@ -246,6 +238,7 @@ public class Index {
 				System.err.println("Create new block failure.");
 				return -1;
 			}
+			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " start");
 
 			RandomAccessFile bf1 = new RandomAccessFile(b1, "r");
 			RandomAccessFile bf2 = new RandomAccessFile(b2, "r");
@@ -254,7 +247,7 @@ public class Index {
 			long b1Ptr = 0L, b1Length = bf1.length();
 			long b2Ptr = 0L, b2Length = bf2.length();
 			int i, j, f, t1, t2, f1, f2, d1, d2;
-			long floc, cloc; // freq location, current location
+			long floc, cloc; // doc freq location, current location
 			ByteBuffer buffer = ByteBuffer.allocate(4);
 			while (((b1Ptr = bf1.getFilePointer()) < b1Length && (t1 = bf1.readInt()) != 0) && ((b2Ptr = bf2.getFilePointer()) < b2Length && (t2 = bf2.readInt()) != 0)) {
 				f1 = bf1.readInt();
@@ -294,15 +287,11 @@ public class Index {
 					mfc.position(cloc);
 				} else {
 					if (t1 < t2) {
-						while (t1 < t2) {
-							if ((t1 = bf1.readInt()) == 0) break;
+						while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0 && t1 < t2)
 							writeExcessTermsToPosting(mfc, buffer, bf1, t1);
-						}
 					} else {
-						while (t2 < t1) {
-							if ((t2 = bf2.readInt()) == 0) break;
+						while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0 && t2 < t1)
 							writeExcessTermsToPosting(mfc, buffer, bf2, t2);
-						}
 					}
 				}
 			}
@@ -313,12 +302,19 @@ public class Index {
 				while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0)
 					writeExcessTermsToPosting(mfc, buffer, bf2, t2);
 			}
+			buffer = null;
 
 			bf1.close();
+			bf1 = null;
 			bf2.close();
+			bf2 = null;
 			mf.close();
+			mf = null;
+			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " done");
 			b1.delete();
+			b1 = null;
 			b2.delete();
+			b2 = null;
 			blockQueue.add(combfile);
 		}
 

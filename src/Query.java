@@ -27,7 +27,7 @@ public class Query {
 	// Index
 	private BaseIndex index = null;
 
-	// idicate whether the query service is running or not
+	// indicate whether the query service is running or not
 	private boolean running = false;
 	private RandomAccessFile indexFile = null;
 
@@ -36,9 +36,6 @@ public class Query {
 	 * posting list and read it back.
 	 */
 	private PostingList readPosting(FileChannel fc, int termId) throws IOException {
-		/*
-		 * TODO: Your code here
-		 */
 		long position = posDict.get(termId);
 		int size = freqDict.get(termId);
 		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
@@ -111,14 +108,14 @@ public class Query {
 		PostingList currList = prevList;
 		List<Integer> list = prevList.getList();
 		for (int i = 1; i < tokens.length; i++) {
-			termId = termDict.getOrDefault(tokens[i], -1);
-			if (termId == -1)
+			if ((termId = termDict.getOrDefault(tokens[i], -1)) == -1)
 				return null;
 			currList = readPosting(indexFile.getChannel(), termId);
 			list = intersect(list, currList.getList());
 			if (list.isEmpty())
 				return null;
 		}
+		tokens = null;
 		return list;
 	}
 
@@ -145,20 +142,8 @@ public class Query {
 	}
 
 	String outputQueryResult(List<Integer> res) {
-		/*
-		 * TODO:
-		 * 
-		 * Take the list of documents ID and prepare the search results, sorted by lexicon order.
-		 * 
-		 * E.g. 0/fine.txt 0/hello.txt 1/bye.txt 2/fine.txt 2/hello.txt
-		 *
-		 * If there no matched document, output:
-		 * 
-		 * no results found
-		 * 
-		 */
 		if (res == null || res.isEmpty())
-			return "no results found"; // TODO: This should not be here
+			return "no results found";
 		List<String> fileNames = new ArrayList<String>();
 		for (Integer docId : res) {
 			String fileName = docDict.get(docId);
@@ -188,7 +173,7 @@ public class Query {
 		String input = args[1];
 
 		Query queryService = new Query();
-		queryService.runQueryService(className, args[1]);
+		queryService.runQueryService(className, input);
 
 		/* Processing queries */
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));

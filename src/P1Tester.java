@@ -46,7 +46,7 @@ public class P1Tester {
 		try {
 			File file = new File(indexDirname, "stats.txt");
 
-			// if file doesnt exists, then create it
+			// if file doesn't exists, then create it
 			if (!file.exists()) {
 				file.createNewFile();
 			}
@@ -93,7 +93,7 @@ public class P1Tester {
 			try {
 				File file = new File(outputDir, (i + 1) + ".out");
 
-				// if file doesnt exists, then create it
+				// if file doesn't exists, then create it
 				if (!file.exists()) {
 					file.createNewFile();
 				}
@@ -120,7 +120,7 @@ public class P1Tester {
 		try {
 			File file = new File(outputDir, "stats.txt");
 
-			// if file doesnt exists, then create it
+			// if file doesn't exists, then create it
 			if (!file.exists()) {
 				file.createNewFile();
 			}
@@ -139,12 +139,12 @@ public class P1Tester {
 
 	public static void main(String[] args) {
 		// Test the "large" dataset
-		testIndex("Basic", "./datasets/small", "./index/small");
-		testQuery("Basic", "./index/small", queriesSmall, "./output/small");
+//		testIndex("Basic", "./datasets/small", "./index/small");
+//		testQuery("Basic", "./index/small", queriesSmall, "./output/small");
 
 		// Test the "large" dataset
-		// testIndex("Basic", "./datasets/large", "./index/large");
-		// testQuery("Basic", "./index/large", queriesLarge, "./output/large");
+		 testIndex("Basic", "./datasets/large", "./index/large");
+		 testQuery("Basic", "./index/large", queriesLarge, "./output/large");
 
 		// Test the "citeseer" dataset
 		// testIndex("Basic", "./datasets/citeseer", "./index/citeseer");

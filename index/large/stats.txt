@@ -1,6 +1,6 @@
 Indexing Test Result: ./index/large:
-	Total Files Indexed: 98998
-	Memory Used: 317.20052 MBs
-	Time Used: 254.232 secs
-	Index Size: 55.37303924560547 MBs
+	Total Files Indexed: -1
+	Memory Used: 1076.971968 MBs
+	Time Used: 1630.296 secs
+	Index Size: 0.0 MBs
 	Alright. Good Bye.
