@@ -41,8 +41,8 @@ public class Index {
 	private static BaseIndex index = null;
 
 	/*
-	 * Write a posting list to the given file You should record the file position of this posting list so that you can
-	 * read it back during retrieval
+	 * Write a posting list to the given file You should record the file position of
+	 * this posting list so that you can read it back during retrieval
 	 * 
 	 */
 	private static void writePosting(FileChannel fc, PostingList posting) throws IOException {
@@ -84,7 +84,7 @@ public class Index {
 		fc.write(buffer);
 		buffer = null;
 	}
-	
+
 	private static void writeBytesBuffer(FileChannel fc, Integer[] values) throws IOException {
 		ByteBuffer buffer = ByteBuffer.allocate(values.length * 4);
 		for (int value : values)
@@ -93,8 +93,9 @@ public class Index {
 		fc.write(buffer);
 		buffer = null;
 	}
-	
-	private static void writeExcessTermsToPosting(FileChannel fc, RandomAccessFile block, int termId, List<Integer> docs) throws IOException {
+
+	private static void writeExcessTermsToPosting(FileChannel fc, RandomAccessFile block, int termId,
+			List<Integer> docs) throws IOException {
 		docs.clear();
 		docs.add(termId);
 		int freq;
@@ -209,20 +210,20 @@ public class Index {
 			/*
 			 * Write all posting lists for all terms to file (bfc)
 			 */
-			System.out.println("DEBUG: Write posting start");
+//			System.out.println("DEBUG: Write posting start");
 			for (Integer termId = 1; termId <= termDict.size(); termId++) {
 				Set<Integer> docIds = termDoc.get(termId);
 				List<Integer> docIds2 = new Vector<Integer>(docIds);
 				writePosting(bfcc, new PostingList(termId, docIds2));
 				docIds = null;
 			}
-			System.out.println("DEBUG: Write posting done");
+//			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();
 		}
 		
 		/* Assign position and document frequency to each term */
-		System.out.println("DEBUG: Assign start");
+//		System.out.println("DEBUG: Assign start");
 		Long position = 0L;
 		for (Integer termId = 1; termId <= (wordIdCounter = termDict.size()); termId++) {
 			Pair<Long, Integer> pair = postingDict.get(termId);
@@ -234,7 +235,7 @@ public class Index {
 			position += docFreq * 4 + 8;
 			pair.setSecond(docFreq);
 		}
-		System.out.println("DEBUG: Assign done");
+//		System.out.println("DEBUG: Assign done");
 
 		/* Required: output total number of files. */
 		System.out.println("Total Files Indexed: " + totalFileCount);
@@ -252,79 +253,63 @@ public class Index {
 				System.err.println("Create new block failure.");
 				return -1;
 			}
-			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " start");
+//			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " start");
 
 			RandomAccessFile bf1 = new RandomAccessFile(b1, "r");
 			RandomAccessFile bf2 = new RandomAccessFile(b2, "r");
 			RandomAccessFile mf = new RandomAccessFile(combfile, "rw");
-			FileChannel mfc = mf.getChannel();
-			long b1Ptr = 0L, b1Length = bf1.length();
-			long b2Ptr = 0L, b2Length = bf2.length();
-			int i, j, f, t1, t2, f1, f2, d1, d2;
-			List<Integer> docs = new LinkedList<Integer>();
-			while (((b1Ptr = bf1.getFilePointer()) < b1Length && (t1 = bf1.readInt()) != 0) && ((b2Ptr = bf2.getFilePointer()) < b2Length && (t2 = bf2.readInt()) != 0)) {
-				f1 = bf1.readInt();
-				f2 = bf2.readInt();
-				docs.clear();
-				if (t1 == t2) {
-					i = j = f = 0;
-					docs.add(t1);
-					while (i < f1 && j < f2) {
-						d1 = bf1.readInt();
-						d2 = bf2.readInt();
-						if (d1 < d2) {
-							docs.add(d1);
-							i++;
-						} else if (d2 < d1) {
-							docs.add(d2);
-							j++;
-						} else {
-							docs.add(d2);
-							i++;
-							j++;
-						}
-						f++;
-					}
-					while (i++ < f1) {
-						docs.add(d1 = bf1.readInt());
-						f++;
-					}
-					while (j++ < f2) {
-						docs.add(d2 = bf2.readInt());
-						f++;
-					}
-					docs.add(1, f);
-					System.out.println("DEBUG: EQUAL");
-					writeBytesBuffer(mfc, docs.toArray(new Integer[docs.size()]));
+			
+			FileChannel fc1 = bf1.getChannel();
+			FileChannel fc2 = bf2.getChannel();
+			FileChannel fcmf = mf.getChannel();
+			
+			PostingList pbf1 = index.readPosting(fc1);
+			PostingList pbf2 = index.readPosting(fc2);
+			int termIdP1 = pbf1.getTermId();
+			int termIdP2 = pbf2.getTermId();
+			while(pbf1 != null || pbf2 != null) {
+				if (termIdP1 == termIdP2) {
+					//merge
+					List<Integer> list1 = pbf1.getList();
+					List<Integer> list2 = pbf2.getList();
+					List<Integer> list = mergeAndSorted(list1, list2);
+					index.writePosting(fcmf, new PostingList(termIdP1, list));
+					pbf1 = index.readPosting(fc1);
+					pbf2 = index.readPosting(fc2);
+				} else if (termIdP1 < termIdP2) {
+					index.writePosting(fcmf, pbf1);
+					pbf1 = index.readPosting(fc1);	
 				} else {
-					if (t1 < t2) {
-						while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0 && t1 < t2)
-							writeExcessTermsToPosting(mfc, bf1, t1, docs);
-					} else {
-						while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0 && t2 < t1)
-							writeExcessTermsToPosting(mfc, bf2, t2, docs);
-					}
+					index.writePosting(fcmf, pbf2);
+					pbf2 = index.readPosting(fc2);
+					if(pbf2 != null) 
+						termIdP2 = pbf2.getTermId();
+					else
+						termIdP2 = Integer.MAX_VALUE;
 				}
+				
+				if(pbf1 != null)
+					termIdP1 = pbf1.getTermId();
+				else
+					termIdP1 = Integer.MAX_VALUE;
+				
+				if(pbf2 != null) 
+					termIdP2 = pbf2.getTermId();
+				else
+					termIdP2 = Integer.MAX_VALUE;
 			}
-			if (b1Ptr < b1Length) {
-				while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0)
-					writeExcessTermsToPosting(mfc, bf1, t1, docs);
-			} else if (b2Ptr < b2Length) {
-				while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0)
-					writeExcessTermsToPosting(mfc, bf2, t2, docs);
-			}
-
+			
 			bf1.close();
-			bf1 = null;
+//			bf1 = null;
 			bf2.close();
-			bf2 = null;
+//			bf2 = null;
 			mf.close();
-			mf = null;
-			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " done");
+//			mf = null;
+//			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " done");
 			b1.delete();
-			b1 = null;
+//			b1 = null;
 			b2.delete();
-			b2 = null;
+//			b2 = null;
 			blockQueue.add(combfile);
 		}
 
@@ -352,6 +337,29 @@ public class Index {
 		postWriter.close();
 
 		return totalFileCount;
+	}
+	
+	public static List<Integer> mergeAndSorted(List<Integer> list1, List<Integer> list2) {
+		List<Integer> list = new ArrayList<Integer>();
+		Iterator<Integer> iterA = list1.iterator();
+		Iterator<Integer> iterB = list2.iterator();
+		Integer elementA = iterA.next();
+		Integer elementB = iterB.next();
+		while (elementA != Integer.MAX_VALUE || elementB != Integer.MAX_VALUE) {
+			if (elementA == elementB) {
+				list.add(elementA);
+				elementA = iterA.hasNext() ? iterA.next() : Integer.MAX_VALUE;
+				elementB = iterB.hasNext() ? iterB.next() : Integer.MAX_VALUE;
+			} else if (elementA < elementB) {
+				list.add(elementA);
+				elementA = iterA.hasNext() ? iterA.next() : Integer.MAX_VALUE;
+			} else {
+				list.add(elementB);
+				elementB = iterB.hasNext() ? iterB.next() : Integer.MAX_VALUE;
+			}
+		}	
+		
+		return list;
 	}
 
 	public static void main(String[] args) throws IOException {
