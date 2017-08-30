@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -59,6 +59,7 @@ public class Index {
 			buffer.putInt(docId);
 		buffer.flip();
 		fc.write(buffer);
+		buffer = null;
 	}
 
 	/**
@@ -76,19 +77,32 @@ public class Index {
 		}
 	}
 
-	private static void writeByteBuffer(FileChannel fc, ByteBuffer buffer, int value) throws IOException {
-		buffer.clear();
+	private static void writeByteBuffer(FileChannel fc, int value) throws IOException {
+		ByteBuffer buffer = ByteBuffer.allocate(4);
 		buffer.putInt(value);
 		buffer.flip();
 		fc.write(buffer);
+		buffer = null;
 	}
 	
-	private static void writeExcessTermsToPosting(FileChannel fc, ByteBuffer buffer, RandomAccessFile block, int termId) throws IOException {
-		writeByteBuffer(fc, buffer, termId);
+	private static void writeBytesBuffer(FileChannel fc, Integer[] values) throws IOException {
+		ByteBuffer buffer = ByteBuffer.allocate(values.length * 4);
+		for (int value : values)
+			buffer.putInt(value);
+		buffer.flip();
+		fc.write(buffer);
+		buffer = null;
+	}
+	
+	private static void writeExcessTermsToPosting(FileChannel fc, RandomAccessFile block, int termId, List<Integer> docs) throws IOException {
+		docs.clear();
+		docs.add(termId);
 		int freq;
-		writeByteBuffer(fc, buffer, freq = block.readInt());
+		docs.add(freq = block.readInt());
 		while (freq-- != 0)
-			writeByteBuffer(fc, buffer, block.readInt());
+			docs.add(block.readInt());
+		System.out.println("DEBUG: EXCESS");
+		writeBytesBuffer(fc, docs.toArray(new Integer[docs.size()]));
 	}
 
 	/**
@@ -247,62 +261,58 @@ public class Index {
 			long b1Ptr = 0L, b1Length = bf1.length();
 			long b2Ptr = 0L, b2Length = bf2.length();
 			int i, j, f, t1, t2, f1, f2, d1, d2;
-			long floc, cloc; // doc freq location, current location
-			ByteBuffer buffer = ByteBuffer.allocate(4);
+			List<Integer> docs = new LinkedList<Integer>();
 			while (((b1Ptr = bf1.getFilePointer()) < b1Length && (t1 = bf1.readInt()) != 0) && ((b2Ptr = bf2.getFilePointer()) < b2Length && (t2 = bf2.readInt()) != 0)) {
 				f1 = bf1.readInt();
 				f2 = bf2.readInt();
+				docs.clear();
 				if (t1 == t2) {
 					i = j = f = 0;
-					writeByteBuffer(mfc, buffer, t1);
-					floc = mfc.position();
-					writeByteBuffer(mfc, buffer, 0);
+					docs.add(t1);
 					while (i < f1 && j < f2) {
 						d1 = bf1.readInt();
 						d2 = bf2.readInt();
 						if (d1 < d2) {
-							writeByteBuffer(mfc, buffer, d1);
+							docs.add(d1);
 							i++;
 						} else if (d2 < d1) {
-							writeByteBuffer(mfc, buffer, d2);
+							docs.add(d2);
 							j++;
 						} else {
-							writeByteBuffer(mfc, buffer, d2);
+							docs.add(d2);
 							i++;
 							j++;
 						}
 						f++;
 					}
 					while (i++ < f1) {
-						writeByteBuffer(mfc, buffer, d1 = bf1.readInt());
+						docs.add(d1 = bf1.readInt());
 						f++;
 					}
 					while (j++ < f2) {
-						writeByteBuffer(mfc, buffer, d2 = bf2.readInt());
+						docs.add(d2 = bf2.readInt());
 						f++;
 					}
-					cloc = mfc.position();
-					mfc.position(floc);
-					writeByteBuffer(mfc, buffer, f);
-					mfc.position(cloc);
+					docs.add(1, f);
+					System.out.println("DEBUG: EQUAL");
+					writeBytesBuffer(mfc, docs.toArray(new Integer[docs.size()]));
 				} else {
 					if (t1 < t2) {
 						while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0 && t1 < t2)
-							writeExcessTermsToPosting(mfc, buffer, bf1, t1);
+							writeExcessTermsToPosting(mfc, bf1, t1, docs);
 					} else {
 						while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0 && t2 < t1)
-							writeExcessTermsToPosting(mfc, buffer, bf2, t2);
+							writeExcessTermsToPosting(mfc, bf2, t2, docs);
 					}
 				}
 			}
 			if (b1Ptr < b1Length) {
 				while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0)
-					writeExcessTermsToPosting(mfc, buffer, bf1, t1);
+					writeExcessTermsToPosting(mfc, bf1, t1, docs);
 			} else if (b2Ptr < b2Length) {
 				while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0)
-					writeExcessTermsToPosting(mfc, buffer, bf2, t2);
+					writeExcessTermsToPosting(mfc, bf2, t2, docs);
 			}
-			buffer = null;
 
 			bf1.close();
 			bf1 = null;
