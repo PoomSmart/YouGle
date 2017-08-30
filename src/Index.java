@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -16,6 +17,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -32,6 +34,8 @@ public class Index {
 	private static Map<String, Integer> termDict = new TreeMap<String, Integer>();
 	// Block queue
 	private static LinkedList<File> blockQueue = new LinkedList<File>();
+	// Term id -> doc id list
+	private static Map<Integer, List<Integer>> termDoc = new TreeMap<Integer, List<Integer>>();
 
 	// Total file counter
 	private static int totalFileCount = 0;
@@ -52,7 +56,15 @@ public class Index {
 		 * TODO: Your code here
 		 * 
 		 */
-
+		List<Integer> docIds = posting.getList();
+		int size = docIds.size();
+		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
+		buffer.put((byte)posting.getTermId());
+		buffer.put((byte)size);
+		for (int docId : docIds)
+			buffer.put((byte)docId);
+		buffer.flip();
+		fc.write(buffer);
 	}
 
 	/**
@@ -162,6 +174,11 @@ public class Index {
 						if (pair == null)
 							postingDict.put(termId, pair = new Pair<Long, Integer>(0L, 0));
 						pair.setSecond(pair.getSecond() + 1);
+						List<Integer> docIds = termDoc.get(termId);
+						if (docIds == null)
+							termDoc.put(termId, docIds = new ArrayList<Integer>());
+						if (!docIds.contains(docId))
+							docIds.add(docId);
 					}
 				}
 				reader.close();
@@ -174,21 +191,23 @@ public class Index {
 			}
 
 			RandomAccessFile bfc = new RandomAccessFile(blockFile, "rw");
+			FileChannel bfcc = bfc.getChannel();
 
 			/*
 			 * TODO: Your code here Write all posting lists for all terms to file (bfc)
 			 */
+			/* Assign position to each term */
+			Long position = 0L;
+			for (Integer termId = 1; termId <= termDict.size(); termId++) {
+				Pair<Long, Integer> pair = postingDict.get(termId);
+				pair.setFirst(position);
+				List<Integer> docIds = termDoc.get(termId);
+				position += docIds.size() * 4 + 8;
+				Collections.sort(docIds);
+				writePosting(bfcc, new PostingList(termId, docIds));
+			}
 
 			bfc.close();
-		}
-		
-		/* Assign position to each term */
-		Long position = 0L;
-		int termCount = termDict.size();
-		for (Integer termId = 1; termId <= termCount; termId++) {
-			Pair<Long, Integer> pair = postingDict.get(termId);
-			pair.setFirst(position);
-			position += pair.getSecond() * 4 + 8;
 		}
 		
 		/* Required: output total number of files. */

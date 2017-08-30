@@ -5,12 +5,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -40,7 +38,15 @@ public class Query {
 		/*
 		 * TODO: Your code here
 		 */
-		return null;
+		long position = posDict.get(termId);
+		int size = freqDict.get(termId);
+		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
+		fc.read(buffer, position + 8);
+		buffer.rewind();
+		List<Integer> docIds = new ArrayList<Integer>();
+		for (int i = 0; i < size; i++)
+			docIds.add(buffer.getInt());
+		return new PostingList(termId, docIds);
 	}
 
 	public void runQueryService(String indexMode, String indexDirname) throws IOException {
@@ -96,7 +102,14 @@ public class Query {
 		if (!running) {
 			System.err.println("Error: Query service must be initiated");
 		}
-		System.out.println("d " + query);
+		String[] tokens = query.trim().split("\\s+");
+		for (String token : tokens) {
+			int termId = termDict.getOrDefault(token, -1);
+			if (termId == -1)
+				continue;
+			PostingList list = readPosting(indexFile.getChannel(), termId);
+			System.out.println(list.getList());
+		}
 
 		/*
 		 * TODO: Your code here Perform query processing with the inverted index. return the list of IDs of the
@@ -121,7 +134,7 @@ public class Query {
 		 * 
 		 */
 		if (res == null)
-			return "no results found";
+			return "no results found"; // TODO: This should not be here
 		List<String> fileNames = new ArrayList<String>();
 		for (Integer docId : res) {
 			String fileName = docDict.get(docId);
