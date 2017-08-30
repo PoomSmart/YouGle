@@ -39,8 +39,10 @@ public class Query {
 		long position = posDict.get(termId);
 		int size = freqDict.get(termId);
 		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
-		fc.read(buffer, position + 8);
-		buffer.rewind();
+		fc.read(buffer, position);
+		buffer.clear();
+		buffer.getInt();
+		buffer.getInt();
 		List<Integer> docIds = new ArrayList<Integer>();
 		for (int i = 0; i < size; i++)
 			docIds.add(buffer.getInt());
@@ -147,6 +149,10 @@ public class Query {
 		List<String> fileNames = new ArrayList<String>();
 		for (Integer docId : res) {
 			String fileName = docDict.get(docId);
+			if(fileName == null) {
+				System.out.println(docId);
+				continue;
+			}
 			fileNames.add(fileName);
 		}
 		Collections.sort(fileNames);
