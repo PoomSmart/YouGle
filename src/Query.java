@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -103,21 +104,42 @@ public class Query {
 			System.err.println("Error: Query service must be initiated");
 		}
 		String[] tokens = query.trim().split("\\s+");
-		for (String token : tokens) {
-			int termId = termDict.getOrDefault(token, -1);
+		int termId = termDict.getOrDefault(tokens[0], -1);
+		if(termId == -1)
+			return null;
+		PostingList prevList = readPosting(indexFile.getChannel(), termId);
+		PostingList currList = prevList;
+		List<Integer> list = prevList.getList();
+		for (int i = 1; i < tokens.length; i++) {
+			termId = termDict.getOrDefault(tokens[i], -1);
 			if (termId == -1)
-				continue;
-			PostingList list = readPosting(indexFile.getChannel(), termId);
-			System.out.println(list.getList());
+				return null;
+			currList = readPosting(indexFile.getChannel(), termId);
+			list = intersect(list, currList.getList());
+			if(list.isEmpty()) return null;
 		}
-
-		/*
-		 * TODO: Your code here Perform query processing with the inverted index. return the list of IDs of the
-		 * documents that match the query
-		 * 
-		 */
-		return null;
-
+		return list;
+	}
+	
+	public static List<Integer> intersect(List<Integer> list, List<Integer> next) {
+		List<Integer> newList = new ArrayList<Integer>();
+		Iterator<Integer> iterA = list.iterator();
+		Iterator<Integer> iterB = next.iterator();
+		Integer elementA = iterA.next();
+		Integer elementB = iterB.next();
+		while(elementA != null && elementB != null) {
+			if(elementA == elementB) {
+				newList.add(elementA);
+				elementA = iterA.hasNext() ? iterA.next():null;
+				elementB = iterB.hasNext() ? iterB.next():null;
+			} else if(elementA < elementB) {
+				elementA = iterA.hasNext() ? iterA.next():null;
+			} else {
+				elementB = iterB.hasNext() ? iterB.next():null;
+			}
+		}
+		if(elementA == elementB && elementA != null && elementB != null) newList.add(elementA);
+		return newList;
 	}
 
 	String outputQueryResult(List<Integer> res) {
@@ -133,7 +155,7 @@ public class Query {
 		 * no results found
 		 * 
 		 */
-		if (res == null)
+		if (res == null || res.isEmpty())
 			return "no results found"; // TODO: This should not be here
 		List<String> fileNames = new ArrayList<String>();
 		for (Integer docId : res) {
