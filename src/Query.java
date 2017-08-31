@@ -7,8 +7,9 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +43,8 @@ public class Query {
 		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
 		fc.read(buffer, position + 8);
 		buffer.rewind();
-		List<Integer> docIds = new ArrayList<Integer>();
-		for (int i = 0; i < size; i++)
+		List<Integer> docIds = new Vector<Integer>();
+		while (size-- != 0)
 			docIds.add(buffer.getInt());
 		return new PostingList(termId, docIds);
 	}
@@ -102,6 +103,13 @@ public class Query {
 			System.err.println("Error: Query service must be initiated");
 		}
 		String[] tokens = query.trim().split("\\s+");
+		Arrays.sort(tokens, new Comparator<String>() {
+			@Override
+		    public int compare(String t1, String t2) {
+		        int c = freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
+		        return c == 0 ? 0 : (c > 0 ? 1 : -1);
+		    }
+		});
 		int termId = termDict.getOrDefault(tokens[0], -1);
 		if (termId == -1)
 			return null;
@@ -112,8 +120,7 @@ public class Query {
 			if ((termId = termDict.getOrDefault(tokens[i], -1)) == -1)
 				return null;
 			currList = readPosting(indexFile.getChannel(), termId);
-			list = intersect(list, currList.getList());
-			if (list.isEmpty())
+			if ((list = intersect(list, currList.getList())).isEmpty())
 				return null;
 		}
 		tokens = null;
@@ -121,7 +128,7 @@ public class Query {
 	}
 
 	public static List<Integer> intersect(List<Integer> list, List<Integer> next) {
-		List<Integer> newList = new ArrayList<Integer>();
+		List<Integer> newList = new Vector<Integer>();
 		Iterator<Integer> iterA = list.iterator();
 		Iterator<Integer> iterB = next.iterator();
 		Integer elementA = iterA.next();
@@ -153,7 +160,9 @@ public class Query {
 			fileNames.add(fileName);
 		}
 		Collections.sort(fileNames);
-		return String.join(" ", fileNames);
+		String output = String.join(" ", fileNames);
+		fileNames = null;
+		return output;
 	}
 
 	public static void main(String[] args) throws IOException {
