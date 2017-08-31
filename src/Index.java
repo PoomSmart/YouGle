@@ -63,14 +63,6 @@ public class Index {
 			return null;
 		}
 	}
-
-	private static void writeByteBuffer(FileChannel fc, int value) throws IOException {
-		ByteBuffer buffer = ByteBuffer.allocate(4);
-		buffer.putInt(value);
-		buffer.flip();
-		fc.write(buffer);
-		buffer = null;
-	}
 	
 	private static void writeBytesBuffer(FileChannel fc, List<Integer> values) throws IOException {
 		ByteBuffer buffer = ByteBuffer.allocate(values.size() * 4);
@@ -79,17 +71,6 @@ public class Index {
 		buffer.flip();
 		fc.write(buffer);
 		buffer = null;
-	}
-	
-	private static void writeExcessTermsToPosting(FileChannel fc, RandomAccessFile block, int termId, List<Integer> docs) throws IOException {
-		docs.clear();
-		docs.add(termId);
-		int freq;
-		docs.add(freq = block.readInt());
-		while (freq-- != 0)
-			docs.add(block.readInt());
-//		System.out.println("DEBUG: EXCESS");
-		writeBytesBuffer(fc, docs);
 	}
 
 	/**
