@@ -155,8 +155,6 @@ public class Query {
 		List<String> fileNames = new Vector<String>();
 		for (Integer docId : res) {
 			String fileName = docDict.get(docId);
-			if (fileName == null)
-				continue;
 			fileNames.add(fileName);
 		}
 		Collections.sort(fileNames);

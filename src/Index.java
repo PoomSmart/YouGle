@@ -132,6 +132,8 @@ public class Index {
 
 			File blockDir = new File(dataDirname, block.getName());
 			File[] filelist = blockDir.listFiles();
+			
+			Map<Integer, Set<Integer>> localTermDoc = new TreeMap<Integer, Set<Integer>>();
 
 			/* For each file */
 			for (File file : filelist) {
@@ -155,6 +157,10 @@ public class Index {
 						if (docIds == null)
 							termDoc.put(termId, docIds = new HashSet<Integer>());
 						docIds.add(docId);
+						Set<Integer> localDocIds = localTermDoc.get(termId);
+						if (localDocIds == null)
+							localTermDoc.put(termId, localDocIds = new HashSet<Integer>());
+						localDocIds.add(docId);
 					}
 					tokens = null;
 				}
@@ -174,11 +180,16 @@ public class Index {
 			 * Write all posting lists for all terms to file (bfc)
 			 */
 			System.out.println("DEBUG: Write posting start");
-			for (Integer termId = 1; termId <= termDict.size(); termId++) {
-				List<Integer> docIds = new Vector<Integer>(termDoc.get(termId));
+			for (Integer termId : localTermDoc.keySet()) {
+				Set<Integer> docIdsSet = localTermDoc.get(termId);
+				if (docIdsSet == null)
+					continue;
+				List<Integer> docIds = new Vector<Integer>(docIdsSet);
 				Collections.sort(docIds);
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
+			localTermDoc.clear();
+			localTermDoc = null;
 			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();
@@ -197,6 +208,9 @@ public class Index {
 			position += docFreq * 4 + 8;
 			pair.setSecond(docFreq);
 		}
+		termDoc.clear();
+		termDoc = null;
+		System.gc(); // TODO: may remove
 		System.out.println("DEBUG: Assign done");
 
 		/* Required: output total number of files. */
@@ -227,7 +241,9 @@ public class Index {
 			List<Integer> docs = new Vector<Integer>();
 			PostingList p1, p2;
 			List<Integer> docs1, docs2;
-			while ((p1 = index.readPosting(bf1c)) != null && (p2 = index.readPosting(bf2c)) != null) {
+			p1 = index.readPosting(bf1c);
+			p2 = index.readPosting(bf2c);
+			while (p1 != null && p2 != null) {
 				docs.clear();
 				f1 = (docs1 = p1.getList()).size();
 				f2 = (docs2 = p2.getList()).size();
@@ -258,17 +274,29 @@ public class Index {
 					}
 					docs.add(1, f);
 					writeBytesBuffer(mfc, docs);
+					p1 = index.readPosting(bf1c);
+					p2 = index.readPosting(bf2c);
 				} else {
-					if (t1 < t2)
-						index.writePosting(mfc, p1 = index.readPosting(bf1c));
-					else
-						index.writePosting(mfc, p2 = index.readPosting(bf2c));
+					if (t1 < t2) {
+						index.writePosting(mfc, p1);
+						p1 = index.readPosting(bf1c);
+					}
+					else {
+						index.writePosting(mfc, p2);
+						p2 = index.readPosting(bf2c);
+					}
 				}
 			}
-			while ((p1 = index.readPosting(bf1c)) != null)
+			while (p1 != null) {
 				index.writePosting(mfc, p1);
-			while ((p2 = index.readPosting(bf2c)) != null)
+				p1 = index.readPosting(bf1c);
+			}
+			while (p2 != null) {
 				index.writePosting(mfc, p2);
+				p2 = index.readPosting(bf2c);
+			}
+			docs1 = null;
+			docs2 = null;
 			docs = null;
 			bf1.close();
 			bf1 = null;
