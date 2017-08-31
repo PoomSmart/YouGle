@@ -138,7 +138,7 @@ public class P1Tester {
 	}
 
 	public static void main(String[] args) {
-		// Test the "large" dataset
+		// Test the "small" dataset
 //		testIndex("Basic", "./datasets/small", "./index/small");
 //		testQuery("Basic", "./index/small", queriesSmall, "./output/small");
 

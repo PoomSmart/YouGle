@@ -8,14 +8,14 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.Vector;
 
 public class Index {
@@ -85,8 +85,8 @@ public class Index {
 		buffer = null;
 	}
 	
-	private static void writeBytesBuffer(FileChannel fc, Integer[] values) throws IOException {
-		ByteBuffer buffer = ByteBuffer.allocate(values.length * 4);
+	private static void writeBytesBuffer(FileChannel fc, List<Integer> values) throws IOException {
+		ByteBuffer buffer = ByteBuffer.allocate(values.size() * 4);
 		for (int value : values)
 			buffer.putInt(value);
 		buffer.flip();
@@ -101,8 +101,8 @@ public class Index {
 		docs.add(freq = block.readInt());
 		while (freq-- != 0)
 			docs.add(block.readInt());
-		System.out.println("DEBUG: EXCESS");
-		writeBytesBuffer(fc, docs.toArray(new Integer[docs.size()]));
+//		System.out.println("DEBUG: EXCESS");
+		writeBytesBuffer(fc, docs);
 	}
 
 	/**
@@ -142,10 +142,6 @@ public class Index {
 			return -1;
 		}
 
-		/*
-		 * TODO: delete all the files/sub folder under outdir
-		 * 
-		 */
 		for (File file : outdir.listFiles()) {
 			file.delete();
 		}
@@ -189,7 +185,7 @@ public class Index {
 						Integer termId = termDict.get(token);
 						Set<Integer> docIds = termDoc.get(termId);
 						if (docIds == null)
-							termDoc.put(termId, docIds = new TreeSet<Integer>());
+							termDoc.put(termId, docIds = new HashSet<Integer>());
 						docIds.add(docId);
 					}
 					tokens = null;
@@ -211,10 +207,9 @@ public class Index {
 			 */
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId = 1; termId <= termDict.size(); termId++) {
-				Set<Integer> docIds = termDoc.get(termId);
-				List<Integer> docIds2 = new Vector<Integer>(docIds);
-				writePosting(bfcc, new PostingList(termId, docIds2));
-				docIds = null;
+				List<Integer> docIds = new Vector<Integer>(termDoc.get(termId));
+				Collections.sort(docIds);
+				writePosting(bfcc, new PostingList(termId, docIds));
 			}
 			System.out.println("DEBUG: Write posting done");
 
@@ -275,12 +270,10 @@ public class Index {
 						if (d1 < d2) {
 							docs.add(d1);
 							i++;
-						} else if (d2 < d1) {
-							docs.add(d2);
-							j++;
 						} else {
 							docs.add(d2);
-							i++;
+							if (d2 >= d1)
+								i++;
 							j++;
 						}
 						f++;
@@ -294,16 +287,13 @@ public class Index {
 						f++;
 					}
 					docs.add(1, f);
-					System.out.println("DEBUG: EQUAL");
-					writeBytesBuffer(mfc, docs.toArray(new Integer[docs.size()]));
+//					System.out.println("DEBUG: EQUAL");
+					writeBytesBuffer(mfc, docs);
 				} else {
-					if (t1 < t2) {
-						while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0 && t1 < t2)
-							writeExcessTermsToPosting(mfc, bf1, t1, docs);
-					} else {
-						while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0 && t2 < t1)
-							writeExcessTermsToPosting(mfc, bf2, t2, docs);
-					}
+					if (t1 < t2)
+						writeExcessTermsToPosting(mfc, bf1, t1, docs);
+					else
+						writeExcessTermsToPosting(mfc, bf2, t2, docs);
 				}
 			}
 			if (b1Ptr < b1Length) {
@@ -313,7 +303,6 @@ public class Index {
 				while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0)
 					writeExcessTermsToPosting(mfc, bf2, t2, docs);
 			}
-
 			bf1.close();
 			bf1 = null;
 			bf2.close();
