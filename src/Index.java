@@ -243,7 +243,7 @@ public class Index {
 			FileChannel bf2c = bf2.getChannel();
 			FileChannel mfc = mf.getChannel();
 			int i, j, f, t1, t2, f1, f2, d1, d2;
-			List<Integer> docs = new LinkedList<Integer>();
+			List<Integer> docs = new Vector<Integer>();
 			PostingList p1, p2;
 			List<Integer> docs1, docs2;
 			while ((p1 = index.readPosting(bf1c)) != null && (p2 = index.readPosting(bf2c)) != null) {
@@ -288,6 +288,7 @@ public class Index {
 				index.writePosting(mfc, p1);
 			while ((p2 = index.readPosting(bf2c)) != null)
 				index.writePosting(mfc, p2);
+			docs = null;
 			bf1.close();
 			bf1 = null;
 			bf2.close();

@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Vector;
 
 public class Query {
 
@@ -144,9 +145,11 @@ public class Query {
 	String outputQueryResult(List<Integer> res) {
 		if (res == null || res.isEmpty())
 			return "no results found";
-		List<String> fileNames = new ArrayList<String>();
+		List<String> fileNames = new Vector<String>();
 		for (Integer docId : res) {
 			String fileName = docDict.get(docId);
+			if (fileName == null)
+				continue;
 			fileNames.add(fileName);
 		}
 		Collections.sort(fileNames);
