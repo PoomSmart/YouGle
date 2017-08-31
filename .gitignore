@@ -1,10 +1,6 @@
 datasets/*
-*.class
-/datasets/
-/index/
-/output/
-/classes/
 src/P1Tester.java
+*.class
 *.dict
 *.index
 *.txt
