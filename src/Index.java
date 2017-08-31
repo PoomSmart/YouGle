@@ -46,20 +46,7 @@ public class Index {
 	 * 
 	 */
 	private static void writePosting(FileChannel fc, PostingList posting) throws IOException {
-		/*
-		 * TODO: Your code here
-		 * 
-		 */
-		List<Integer> docIds = posting.getList();
-		int size = docIds.size();
-		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
-		buffer.putInt(posting.getTermId());
-		buffer.putInt(size);
-		for (int docId : docIds)
-			buffer.putInt(docId);
-		buffer.flip();
-		fc.write(buffer);
-		buffer = null;
+		index.writePosting(fc, posting);
 	}
 
 	/**
@@ -252,21 +239,23 @@ public class Index {
 			RandomAccessFile bf1 = new RandomAccessFile(b1, "r");
 			RandomAccessFile bf2 = new RandomAccessFile(b2, "r");
 			RandomAccessFile mf = new RandomAccessFile(combfile, "rw");
+			FileChannel bf1c = bf1.getChannel();
+			FileChannel bf2c = bf2.getChannel();
 			FileChannel mfc = mf.getChannel();
-			long b1Ptr = 0L, b1Length = bf1.length();
-			long b2Ptr = 0L, b2Length = bf2.length();
 			int i, j, f, t1, t2, f1, f2, d1, d2;
 			List<Integer> docs = new LinkedList<Integer>();
-			while (((b1Ptr = bf1.getFilePointer()) < b1Length && (t1 = bf1.readInt()) != 0) && ((b2Ptr = bf2.getFilePointer()) < b2Length && (t2 = bf2.readInt()) != 0)) {
-				f1 = bf1.readInt();
-				f2 = bf2.readInt();
+			PostingList p1, p2;
+			List<Integer> docs1, docs2;
+			while ((p1 = index.readPosting(bf1c)) != null && (p2 = index.readPosting(bf2c)) != null) {
 				docs.clear();
-				if (t1 == t2) {
-					i = j = f = 0;
+				f1 = (docs1 = p1.getList()).size();
+				f2 = (docs2 = p2.getList()).size();
+				if ((t1 = p1.getTermId()) == (t2 = p2.getTermId())) {
 					docs.add(t1);
+					i = j = f = 0;
 					while (i < f1 && j < f2) {
-						d1 = bf1.readInt();
-						d2 = bf2.readInt();
+						d1 = docs1.get(i);
+						d2 = docs2.get(j);
 						if (d1 < d2) {
 							docs.add(d1);
 							i++;
@@ -278,31 +267,27 @@ public class Index {
 						}
 						f++;
 					}
-					while (i++ < f1) {
-						docs.add(d1 = bf1.readInt());
+					while (i < f1) {
+						docs.add(docs1.get(i++));
 						f++;
 					}
-					while (j++ < f2) {
-						docs.add(d2 = bf2.readInt());
+					while (j < f2) {
+						docs.add(docs2.get(j++));
 						f++;
 					}
 					docs.add(1, f);
-//					System.out.println("DEBUG: EQUAL");
 					writeBytesBuffer(mfc, docs);
 				} else {
 					if (t1 < t2)
-						writeExcessTermsToPosting(mfc, bf1, t1, docs);
+						index.writePosting(mfc, p1 = index.readPosting(bf1c));
 					else
-						writeExcessTermsToPosting(mfc, bf2, t2, docs);
+						index.writePosting(mfc, p2 = index.readPosting(bf2c));
 				}
 			}
-			if (b1Ptr < b1Length) {
-				while (((b1Ptr = bf1.getFilePointer()) < b1Length) && (t1 = bf1.readInt()) != 0)
-					writeExcessTermsToPosting(mfc, bf1, t1, docs);
-			} else if (b2Ptr < b2Length) {
-				while (((b2Ptr = bf2.getFilePointer()) < b2Length) && (t2 = bf2.readInt()) != 0)
-					writeExcessTermsToPosting(mfc, bf2, t2, docs);
-			}
+			while ((p1 = index.readPosting(bf1c)) != null)
+				index.writePosting(mfc, p1);
+			while ((p2 = index.readPosting(bf2c)) != null)
+				index.writePosting(mfc, p2);
 			bf1.close();
 			bf1 = null;
 			bf2.close();
