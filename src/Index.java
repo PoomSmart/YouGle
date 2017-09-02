@@ -182,10 +182,7 @@ public class Index {
 			 */
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId : localTermDoc.keySet()) {
-				Set<Integer> docIdsSet = localTermDoc.get(termId);
-				if (docIdsSet == null)
-					continue;
-				List<Integer> docIds = new Vector<Integer>(docIdsSet);
+				List<Integer> docIds = new Vector<Integer>(localTermDoc.get(termId));
 				Collections.sort(docIds);
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
