@@ -9,6 +9,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -29,7 +30,7 @@ public class Index {
 	// Block queue
 	private static LinkedList<File> blockQueue = new LinkedList<File>();
 	// Term id -> doc id list
-	private static Map<Integer, Set<Integer>> termDoc = new TreeMap<Integer, Set<Integer>>();
+	private static Map<Integer, Set<Integer>> termDoc = new HashMap<Integer, Set<Integer>>();
 
 	// Total file counter
 	private static int totalFileCount = 0;
@@ -199,14 +200,10 @@ public class Index {
 		System.out.println("DEBUG: Assign start");
 		Long position = 0L;
 		for (Integer termId = 1; termId <= (wordIdCounter = termDict.size()); termId++) {
-			Pair<Long, Integer> pair = postingDict.get(termId);
-			if (pair == null)
-				postingDict.put(termId, pair = new Pair<Long, Integer>(0L, 0));
-			pair.setFirst(position);
 			Set<Integer> docIds = termDoc.get(termId);
 			int docFreq = docIds.size();
+			postingDict.put(termId, new Pair<Long, Integer>(position, docFreq));
 			position += docFreq * 4 + 8;
-			pair.setSecond(docFreq);
 		}
 		termDoc.clear();
 		termDoc = null;
