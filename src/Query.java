@@ -123,7 +123,6 @@ public class Query {
 			if ((list = intersect(list, currList.getList())).isEmpty())
 				return null;
 		}
-		tokens = null;
 		return list;
 	}
 
@@ -158,9 +157,7 @@ public class Query {
 			fileNames.add(fileName);
 		}
 		Collections.sort(fileNames);
-		String output = String.join(" ", fileNames);
-		fileNames = null;
-		return output;
+		return String.join(" ", fileNames);
 	}
 
 	public static void main(String[] args) throws IOException {

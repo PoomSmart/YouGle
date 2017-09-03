@@ -29,8 +29,6 @@ public class Index {
 	private static Map<String, Integer> termDict = new TreeMap<String, Integer>();
 	// Block queue
 	private static LinkedList<File> blockQueue = new LinkedList<File>();
-	// Term id -> doc id list
-	private static Map<Integer, Set<Integer>> termDoc = new HashMap<Integer, Set<Integer>>();
 
 	// Total file counter
 	private static int totalFileCount = 0;
@@ -64,7 +62,7 @@ public class Index {
 			return null;
 		}
 	}
-	
+
 	private static void writeBytesBuffer(FileChannel fc, List<Integer> values) throws IOException {
 		ByteBuffer buffer = ByteBuffer.allocate(values.size() * 4);
 		for (int value : values)
@@ -133,14 +131,14 @@ public class Index {
 
 			File blockDir = new File(dataDirname, block.getName());
 			File[] filelist = blockDir.listFiles();
-			
+
 			Map<Integer, Set<Integer>> localTermDoc = new TreeMap<Integer, Set<Integer>>();
 
 			/* For each file */
 			for (File file : filelist) {
 				++totalFileCount;
 				String fileName = block.getName() + "/" + file.getName();
-//				System.out.println(fileName);
+				// System.out.println(fileName);
 
 				// use pre-increment to ensure docID > 0
 				int docId = ++docIdCounter;
@@ -151,19 +149,14 @@ public class Index {
 				while ((line = reader.readLine()) != null) {
 					String[] tokens = line.trim().split("\\s+");
 					for (String token : tokens) {
-						termDict.put(token, termDict.getOrDefault(token, 1 + termDict.size())); // assign term ID in
-																								// increasing manner
-						Integer termId = termDict.get(token);
-						Set<Integer> docIds = termDoc.get(termId);
-						if (docIds == null)
-							termDoc.put(termId, docIds = new HashSet<Integer>());
-						docIds.add(docId);
+						int termId = termDict.getOrDefault(token, -1);
+						if (termId == -1)
+							termDict.put(token, termId = 1 + termDict.size()); // assign term ID in increasing manner
 						Set<Integer> localDocIds = localTermDoc.get(termId);
 						if (localDocIds == null)
 							localTermDoc.put(termId, localDocIds = new HashSet<Integer>());
 						localDocIds.add(docId);
 					}
-					tokens = null;
 				}
 				reader.close();
 			}
@@ -187,25 +180,10 @@ public class Index {
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
 			localTermDoc.clear();
-			localTermDoc = null;
 			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();
 		}
-		
-		/* Assign position and document frequency to each term */
-		System.out.println("DEBUG: Assign start");
-		Long position = 0L;
-		for (Integer termId = 1; termId <= (wordIdCounter = termDict.size()); termId++) {
-			Set<Integer> docIds = termDoc.get(termId);
-			int docFreq = docIds.size();
-			postingDict.put(termId, new Pair<Long, Integer>(position, docFreq));
-			position += docFreq * 4 + 8;
-		}
-		termDoc.clear();
-		termDoc = null;
-		System.gc(); // TODO: may remove
-		System.out.println("DEBUG: Assign done");
 
 		/* Required: output total number of files. */
 		System.out.println("Total Files Indexed: " + totalFileCount);
@@ -234,7 +212,7 @@ public class Index {
 			int i, j, f, t1, t2, f1, f2, d1, d2;
 			List<Integer> docs = new Vector<Integer>();
 			PostingList p1, p2;
-			List<Integer> docs1, docs2;
+			List<Integer> docs1 = null, docs2 = null;
 			p1 = index.readPosting(bf1c);
 			p2 = index.readPosting(bf2c);
 			while (p1 != null && p2 != null) {
@@ -267,42 +245,38 @@ public class Index {
 						f++;
 					}
 					docs.add(1, f);
+					postingDict.put(t1, new Pair<Long, Integer>(mfc.position(), f));
 					writeBytesBuffer(mfc, docs);
 					p1 = index.readPosting(bf1c);
 					p2 = index.readPosting(bf2c);
 				} else {
 					if (t1 < t2) {
+						postingDict.put(t1, new Pair<Long, Integer>(mfc.position(), p1.getList().size()));
 						index.writePosting(mfc, p1);
 						p1 = index.readPosting(bf1c);
-					}
-					else {
+					} else {
+						postingDict.put(t2, new Pair<Long, Integer>(mfc.position(), p2.getList().size()));
 						index.writePosting(mfc, p2);
 						p2 = index.readPosting(bf2c);
 					}
 				}
 			}
 			while (p1 != null) {
+				postingDict.put(p1.getTermId(), new Pair<Long, Integer>(mfc.position(), p1.getList().size()));
 				index.writePosting(mfc, p1);
 				p1 = index.readPosting(bf1c);
 			}
 			while (p2 != null) {
+				postingDict.put(p2.getTermId(), new Pair<Long, Integer>(mfc.position(), p2.getList().size()));
 				index.writePosting(mfc, p2);
 				p2 = index.readPosting(bf2c);
 			}
-			docs1 = null;
-			docs2 = null;
-			docs = null;
 			bf1.close();
-			bf1 = null;
 			bf2.close();
-			bf2 = null;
 			mf.close();
-			mf = null;
 			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " done");
 			b1.delete();
-			b1 = null;
 			b2.delete();
-			b2 = null;
 			blockQueue.add(combfile);
 		}
 
