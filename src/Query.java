@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -43,7 +44,7 @@ public class Query {
 		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
 		fc.read(buffer, position + 8);
 		buffer.rewind();
-		List<Integer> docIds = new Vector<Integer>();
+		List<Integer> docIds = new ArrayList<Integer>();
 		while (size-- != 0)
 			docIds.add(buffer.getInt());
 		return new PostingList(termId, docIds);

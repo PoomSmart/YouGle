@@ -8,15 +8,14 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.Vector;
 
 public class Index {
@@ -154,7 +153,7 @@ public class Index {
 							termDict.put(token, termId = 1 + termDict.size()); // assign term ID in increasing manner
 						Set<Integer> localDocIds = localTermDoc.get(termId);
 						if (localDocIds == null)
-							localTermDoc.put(termId, localDocIds = new HashSet<Integer>());
+							localTermDoc.put(termId, localDocIds = new TreeSet<Integer>());
 						localDocIds.add(docId);
 					}
 				}
@@ -175,8 +174,7 @@ public class Index {
 			 */
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId : localTermDoc.keySet()) {
-				List<Integer> docIds = new Vector<Integer>(localTermDoc.get(termId));
-				Collections.sort(docIds);
+				List<Integer> docIds = new ArrayList<Integer>(localTermDoc.get(termId));
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
 			localTermDoc.clear();
@@ -187,6 +185,12 @@ public class Index {
 
 		/* Required: output total number of files. */
 		System.out.println("Total Files Indexed: " + totalFileCount);
+		
+		/* Temporary variables for merging blocks */
+		int i, j, f, t1, t2, f1, f2, d1, d2;
+		List<Integer> docs = new ArrayList<Integer>();
+		PostingList p1 = null, p2 = null;
+		List<Integer> docs1 = null, docs2 = null;
 
 		/* Merge blocks */
 		while (true) {
@@ -209,10 +213,7 @@ public class Index {
 			FileChannel bf1c = bf1.getChannel();
 			FileChannel bf2c = bf2.getChannel();
 			FileChannel mfc = mf.getChannel();
-			int i, j, f, t1, t2, f1, f2, d1, d2;
-			List<Integer> docs = new Vector<Integer>();
-			PostingList p1, p2;
-			List<Integer> docs1 = null, docs2 = null;
+			
 			p1 = index.readPosting(bf1c);
 			p2 = index.readPosting(bf2c);
 			while (p1 != null && p2 != null) {
@@ -223,9 +224,7 @@ public class Index {
 					docs.add(t1);
 					i = j = f = 0;
 					while (i < f1 && j < f2) {
-						d1 = docs1.get(i);
-						d2 = docs2.get(j);
-						if (d1 < d2) {
+						if ((d1 = docs1.get(i)) < (d2 = docs2.get(j))) {
 							docs.add(d1);
 							i++;
 						} else {
