@@ -121,6 +121,7 @@ public class Index {
 
 		/* BSBI indexing algorithm */
 		File[] dirlist = rootdir.listFiles();
+		boolean singleBlock = dirlist.length == 1;
 
 		/* For each block */
 		for (File block : dirlist) {
@@ -175,7 +176,9 @@ public class Index {
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId : localTermDoc.keySet()) {
 				List<Integer> docIds = new ArrayList<Integer>(localTermDoc.get(termId));
-				writePosting(bfcc, new PostingList(termId, docIds));
+				if (singleBlock)
+					postingDict.put(termId, new Pair<Long, Integer>(bfcc.position(), docIds.size()));
+				index.writePosting(bfcc, new PostingList(termId, docIds));
 			}
 			localTermDoc.clear();
 			System.out.println("DEBUG: Write posting done");
@@ -284,6 +287,7 @@ public class Index {
 		indexFile.renameTo(new File(outputDirname, "corpus.index"));
 
 		BufferedWriter termWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "term.dict")));
+		wordIdCounter = termDict.size();
 		for (String term : termDict.keySet()) {
 			termWriter.write(term + "\t" + termDict.get(term) + "\n");
 		}
