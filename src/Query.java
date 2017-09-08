@@ -107,8 +107,7 @@ public class Query {
 		Arrays.sort(tokens, new Comparator<String>() {
 			@Override
 		    public int compare(String t1, String t2) {
-		        int c = freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
-		        return c == 0 ? 0 : (c > 0 ? 1 : -1);
+		        return freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
 		    }
 		});
 		int termId = termDict.getOrDefault(tokens[0], -1);
