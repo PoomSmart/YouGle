@@ -157,7 +157,7 @@ public class Query {
 			fileNames.add(fileName);
 		}
 		Collections.sort(fileNames);
-		return String.join(" ", fileNames);
+		return String.join("\n", fileNames) + "\n";
 	}
 
 	public static void main(String[] args) throws IOException {
