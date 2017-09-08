@@ -41,7 +41,7 @@ public class Query {
 	private PostingList readPosting(FileChannel fc, int termId) throws IOException {
 		long position = posDict.get(termId);
 		int size = freqDict.get(termId);
-		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
+		ByteBuffer buffer = ByteBuffer.allocate(size * 4);
 		fc.read(buffer, position + 8);
 		buffer.rewind();
 		List<Integer> docIds = new ArrayList<Integer>();
