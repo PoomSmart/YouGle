@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -175,7 +174,7 @@ public class Index {
 			 */
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId : localTermDoc.keySet()) {
-				List<Integer> docIds = new ArrayList<Integer>(localTermDoc.get(termId));
+				List<Integer> docIds = new Vector<Integer>(localTermDoc.get(termId));
 				if (singleBlock)
 					postingDict.put(termId, new Pair<Long, Integer>(bfcc.position(), docIds.size()));
 				index.writePosting(bfcc, new PostingList(termId, docIds));
@@ -188,10 +187,10 @@ public class Index {
 
 		/* Required: output total number of files. */
 		System.out.println("Total Files Indexed: " + totalFileCount);
-		
+
 		/* Temporary variables for merging blocks */
 		int i, j, f, t1, t2, f1, f2, d1, d2;
-		List<Integer> docs = new ArrayList<Integer>();
+		List<Integer> docs = new Vector<Integer>();
 		PostingList p1 = null, p2 = null;
 		List<Integer> docs1 = null, docs2 = null;
 
@@ -216,7 +215,7 @@ public class Index {
 			FileChannel bf1c = bf1.getChannel();
 			FileChannel bf2c = bf2.getChannel();
 			FileChannel mfc = mf.getChannel();
-			
+
 			p1 = index.readPosting(bf1c);
 			p2 = index.readPosting(bf2c);
 			while (p1 != null && p2 != null) {

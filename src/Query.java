@@ -7,7 +7,6 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -44,7 +43,7 @@ public class Query {
 		ByteBuffer buffer = ByteBuffer.allocate(size * 4);
 		fc.read(buffer, position + 8);
 		buffer.rewind();
-		List<Integer> docIds = new ArrayList<Integer>();
+		List<Integer> docIds = new Vector<Integer>();
 		while (size-- != 0)
 			docIds.add(buffer.getInt());
 		return new PostingList(termId, docIds);
@@ -106,9 +105,9 @@ public class Query {
 		String[] tokens = query.trim().split("\\s+");
 		Arrays.sort(tokens, new Comparator<String>() {
 			@Override
-		    public int compare(String t1, String t2) {
-		        return freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
-		    }
+			public int compare(String t1, String t2) {
+				return freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
+			}
 		});
 		int termId = termDict.getOrDefault(tokens[0], -1);
 		if (termId == -1)
