@@ -103,6 +103,10 @@ public class Query {
 			System.err.println("Error: Query service must be initiated");
 		}
 		String[] tokens = query.trim().split("\\s+");
+		for (String token : tokens) {
+			if (termDict.get(token) == null)
+				return null;
+		}
 		Arrays.sort(tokens, new Comparator<String>() {
 			@Override
 			public int compare(String t1, String t2) {
