@@ -5,7 +5,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,15 +37,7 @@ public class Query {
 	 * posting list and read it back.
 	 */
 	private PostingList readPosting(FileChannel fc, int termId) throws IOException {
-		long position = posDict.get(termId);
-		int size = freqDict.get(termId);
-		ByteBuffer buffer = ByteBuffer.allocate(size * 4);
-		fc.read(buffer, position + 8);
-		buffer.rewind();
-		List<Integer> docIds = new Vector<Integer>();
-		while (size-- != 0)
-			docIds.add(buffer.getInt());
-		return new PostingList(termId, docIds);
+		return index.readPosting(fc.position(posDict.get(termId)));
 	}
 
 	public void runQueryService(String indexMode, String indexDirname) throws IOException {
@@ -113,23 +104,18 @@ public class Query {
 				return freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
 			}
 		});
-		int termId = termDict.getOrDefault(tokens[0], -1);
-		if (termId == -1)
-			return null;
-		PostingList prevList = readPosting(indexFile.getChannel(), termId);
+		PostingList prevList = readPosting(indexFile.getChannel(), termDict.get(tokens[0]));
 		PostingList currList = prevList;
 		List<Integer> list = prevList.getList();
 		for (int i = 1; i < tokens.length; i++) {
-			if ((termId = termDict.getOrDefault(tokens[i], -1)) == -1)
-				return null;
-			currList = readPosting(indexFile.getChannel(), termId);
-			if ((list = intersect(list, currList.getList())).isEmpty())
+			currList = readPosting(indexFile.getChannel(), termDict.get(tokens[i]));
+			if ((list = intersection(list, currList.getList())).isEmpty())
 				return null;
 		}
 		return list;
 	}
 
-	public static List<Integer> intersect(List<Integer> list, List<Integer> next) {
+	public static List<Integer> intersection(List<Integer> list, List<Integer> next) {
 		List<Integer> newList = new Vector<Integer>();
 		Iterator<Integer> iterA = list.iterator();
 		Iterator<Integer> iterB = next.iterator();
@@ -140,11 +126,10 @@ public class Query {
 				newList.add(elementA);
 				elementA = iterA.hasNext() ? iterA.next() : null;
 				elementB = iterB.hasNext() ? iterB.next() : null;
-			} else if (elementA < elementB) {
+			} else if (elementA < elementB)
 				elementA = iterA.hasNext() ? iterA.next() : null;
-			} else {
+			else
 				elementB = iterB.hasNext() ? iterB.next() : null;
-			}
 		}
 		if (elementA == elementB && elementA != null && elementB != null)
 			newList.add(elementA);

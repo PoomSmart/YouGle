@@ -1,8 +1,8 @@
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 public class BasicIndex implements BaseIndex {
 
@@ -18,8 +18,8 @@ public class BasicIndex implements BaseIndex {
 			buffer = ByteBuffer.allocate(size * 4);
 			fc.read(buffer);
 			buffer.rewind();
-			List<Integer> docIds = new ArrayList<Integer>(size);
-			for (int i = 0; i < size; i++)
+			List<Integer> docIds = new Vector<Integer>();
+			while (size-- != 0)
 				docIds.add(buffer.getInt());
 			return new PostingList(termId, docIds);
 		} catch (IOException e) {
@@ -40,8 +40,6 @@ public class BasicIndex implements BaseIndex {
 		try {
 			fc.write(buffer);
 		} catch (IOException e) {
-			e.printStackTrace();
 		}
-		buffer = null;
 	}
 }

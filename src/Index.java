@@ -6,7 +6,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -59,15 +58,6 @@ public class Index {
 		} else {
 			return null;
 		}
-	}
-
-	private static void writeBytesBuffer(FileChannel fc, List<Integer> values) throws IOException {
-		ByteBuffer buffer = ByteBuffer.allocate(values.size() * 4);
-		for (int value : values)
-			buffer.putInt(value);
-		buffer.flip();
-		fc.write(buffer);
-		buffer = null;
 	}
 
 	/**
@@ -137,7 +127,7 @@ public class Index {
 			for (File file : filelist) {
 				++totalFileCount;
 				String fileName = block.getName() + "/" + file.getName();
-				// System.out.println(fileName);
+//				System.out.println(fileName); // TODO: change as code
 
 				// use pre-increment to ensure docID > 0
 				int docId = ++docIdCounter;
@@ -189,10 +179,11 @@ public class Index {
 		System.out.println("Total Files Indexed: " + totalFileCount);
 
 		/* Temporary variables for merging blocks */
-		int i, j, f, t1, t2, f1, f2, d1, d2;
+		int t1, t2;
+		Integer d1 = null, d2 = null;
 		List<Integer> docs = new Vector<Integer>();
 		PostingList p1 = null, p2 = null;
-		List<Integer> docs1 = null, docs2 = null;
+		Iterator<Integer> idocs1 = null, idocs2 = null;
 
 		/* Merge blocks */
 		while (true) {
@@ -220,34 +211,32 @@ public class Index {
 			p2 = index.readPosting(bf2c);
 			while (p1 != null && p2 != null) {
 				docs.clear();
-				f1 = (docs1 = p1.getList()).size();
-				f2 = (docs2 = p2.getList()).size();
+				idocs1 = p1.getList().iterator();
+				idocs2 = p2.getList().iterator();
 				if ((t1 = p1.getTermId()) == (t2 = p2.getTermId())) {
-					docs.add(t1);
-					i = j = f = 0;
-					while (i < f1 && j < f2) {
-						if ((d1 = docs1.get(i)) < (d2 = docs2.get(j))) {
+					d1 = popNextOrNull(idocs1);
+					d2 = popNextOrNull(idocs2);
+					while (d1 != null && d2 != null) {
+						if (d1 < d2) {
 							docs.add(d1);
-							i++;
+							d1 = popNextOrNull(idocs1);
 						} else {
 							docs.add(d2);
 							if (d2 >= d1)
-								i++;
-							j++;
+								d1 = popNextOrNull(idocs1);
+							d2 = popNextOrNull(idocs2);
 						}
-						f++;
 					}
-					while (i < f1) {
-						docs.add(docs1.get(i++));
-						f++;
+					while (d1 != null) {
+						docs.add(d1);
+						d1 = popNextOrNull(idocs1);
 					}
-					while (j < f2) {
-						docs.add(docs2.get(j++));
-						f++;
+					while (d2 != null) {
+						docs.add(d2);
+						d2 = popNextOrNull(idocs2);
 					}
-					docs.add(1, f);
-					postingDict.put(t1, new Pair<Long, Integer>(mfc.position(), f));
-					writeBytesBuffer(mfc, docs);
+					postingDict.put(t1, new Pair<Long, Integer>(mfc.position(), docs.size()));
+					index.writePosting(mfc, new PostingList(t1, docs));
 					p1 = index.readPosting(bf1c);
 					p2 = index.readPosting(bf2c);
 				} else {
