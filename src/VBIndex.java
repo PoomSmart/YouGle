@@ -1,6 +1,10 @@
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Vector;
@@ -74,8 +78,26 @@ public class VBIndex implements BaseIndex {
 		Vector<Integer> list = new Vector<Integer>();
 		for(Integer i : postings) {
 			if(list.isEmpty()) list.add(i);
-			list.add(i - list.lastElement());
+			else list.add(i - list.lastElement());
 		}
 		return list;
+	}
+	
+	/**
+	 * To test the correctness of writePosting
+	 * 
+	 * @param args
+	 * @throws FileNotFoundException 
+	 */
+	public static void main(String[] args) throws FileNotFoundException {
+		File file = new File("./index/small/corpus2.index");
+		RandomAccessFile raf = new RandomAccessFile(file, "rw");
+		VBIndex index = new VBIndex();
+		List<Integer> l = new ArrayList<Integer>();
+		l.add(824);
+		l.add(829);
+		l.add(215406);
+		PostingList p = new PostingList(1, l);
+		index.writePosting(raf.getChannel(), p);
 	}
 }
