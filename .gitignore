@@ -5,3 +5,4 @@ src/P1Tester.java
 *.index
 *.txt
 *.out
+/classes/
