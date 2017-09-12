@@ -10,19 +10,65 @@ import java.util.List;
 import java.util.Vector;
 
 public class VBIndex implements BaseIndex {
+	private static List<Integer> VBDecode(List<Byte> byteStream) {
+		LinkedList<Integer> numbers = new LinkedList<Integer>();
+		int n = 0;
+		for (Byte b : byteStream) {
+			if ((b & 0xff) < 128) {
+				n = 128 * n + b;
+			} else {
+				n = 128 * n + ((b & 0xff) - 128);
+				numbers.addLast(n);
+				n = 0;
+			}
+		}
+		return numbers;
+	}
 
 	@Override
 	public PostingList readPosting(FileChannel fc) {
 		// TODO Auto-generated method stub
-		return null;
+		try {
+			ByteBuffer buffer = ByteBuffer.allocate(1);
+			LinkedList<Integer> numbers = new LinkedList<Integer>();
+			List<Integer> postings = new ArrayList<Integer>();
+			int n = 0;
+			int size = 0;
+			while (fc.read(buffer) >= 0) {
+				buffer.flip();
+				Byte b = buffer.get();
+				if ((b & 0xff) < 128) {
+					n = 128 * n + b;
+				} else {
+					n = 128 * n + ((b & 0xff) - 128);
+					numbers.addLast(n);
+					n = 0;
+					if (numbers.size() == 2) {
+						size = numbers.getLast(); // doc freq
+					}
+					if (numbers.size() - 2 == size)
+						break;
+				}
+				buffer.clear();
+			}
+			postings = inverseDocGap(numbers.subList(2, numbers.size()));
+			return new PostingList(numbers.getFirst(), postings);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			return null;
+		}
+		
 	}
 
 	@Override
 	public void writePosting(FileChannel fc, PostingList p) {
 		// TODO Auto-generated method stub
 		List<Integer> intStream = new Vector<Integer>();
-		intStream.add(p.getTermId()); // add first termId
-		intStream.addAll(docGap(p.getList())); // extend intStream with postings in term of doc-gap
+		int termId = p.getTermId();
+		List<Integer> postings = p.getList();
+		intStream.add(termId); // add first termId
+		intStream.add(postings.size());
+		intStream.addAll(docGap(postings)); // extend intStream with postings in term of doc-gap
 		List<Byte> byteStream = VBEncode(intStream); // encode intStream into byteStream via VBEncode algorithm
 		/*
 		 * Write byteStream into fc
@@ -79,23 +125,44 @@ public class VBIndex implements BaseIndex {
 		return list;
 	}
 
+	private static List<Integer> inverseDocGap(List<Integer> docGap) {
+		Vector<Integer> list = new Vector<Integer>();
+		list.addElement(docGap.get(0));
+		for (int i = 1; i < docGap.size(); i++)
+			list.addElement(docGap.get(i) + list.get(i - 1));
+		return list;
+	}
+
 	/**
 	 * To test the correctness of writePosting
 	 * 
 	 * @param args
-	 * @throws FileNotFoundException
+	 * @throws IOException
 	 */
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws IOException {
 		File file = new File("./index/small/corpus2.index");
 		file.delete();
 		file = new File("./index/small/corpus2.index");
 		RandomAccessFile raf = new RandomAccessFile(file, "rw");
+		FileChannel fc = raf.getChannel();
 		VBIndex index = new VBIndex();
-		List<Integer> l = new ArrayList<Integer>();
-		l.add(824);
-		l.add(829);
-		l.add(215406);
-		PostingList p = new PostingList(1, l);
-		index.writePosting(raf.getChannel(), p);
+		int i = 0;
+		while(i++ < 3) {
+			List<Integer> l = new ArrayList<Integer>();
+			l.add(824 + i*100);
+			l.add(829 + i*9000);
+			l.add(215406 + i*4);
+			PostingList p = new PostingList(i, l);
+			index.writePosting(fc, p);
+		}
+		
+		fc.position(0);
+		PostingList posting = null;
+		while((posting = index.readPosting(fc)) != null) {
+			System.out.println("Term id: " + posting.getTermId());
+			System.out.println("List: " + posting.getList());
+		}
+		
+		raf.close();
 	}
 }
