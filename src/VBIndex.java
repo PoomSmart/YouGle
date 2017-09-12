@@ -1,7 +1,7 @@
 import java.nio.channels.FileChannel;
 
-public class GammaIndex implements BaseIndex {
-
+public class VBIndex implements BaseIndex {
+	
 	@Override
 	public PostingList readPosting(FileChannel fc) {
 		// TODO Auto-generated method stub
