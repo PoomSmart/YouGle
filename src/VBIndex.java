@@ -23,8 +23,9 @@ public class VBIndex implements BaseIndex {
 		List<Integer> intStream = new Vector<Integer>();
 		intStream.add(p.getTermId()); // add first termId
 		intStream.addAll(docGap(p.getList())); // extend intStream with postings in term of doc-gap
+		System.out.println(intStream);
 		List<Byte> byteStream = VBEncode(intStream); // encode intStream into byteStream via VBEncode algorithm
-		
+		System.out.println(byteStream);
 		/*
 		 * Write byteStream into fc
 		 */
@@ -44,7 +45,7 @@ public class VBIndex implements BaseIndex {
 	}
 	
 	private static List<Byte> VBEncode(List<Integer> numbers) {
-		List<Byte> byteStream = new Vector<Byte>();
+		List<Byte> byteStream = new ArrayList<Byte>();
 		for(Integer number:numbers) {
 			List<Byte> bytes = VBEncodeNumber(number);
 			byteStream.addAll(bytes);
@@ -55,7 +56,7 @@ public class VBIndex implements BaseIndex {
 	private static List<Byte> VBEncodeNumber(int number) {
 		LinkedList<Byte> bytes = new LinkedList<Byte>();
 		while(true) {
-			bytes.addFirst((byte) (number % 128));
+			bytes.addFirst((byte)(number % 128));
 			if(number < 128) break;
 			number /= 128;
 		}
@@ -76,10 +77,9 @@ public class VBIndex implements BaseIndex {
 	 */
 	private static List<Integer> docGap(List<Integer> postings) {
 		Vector<Integer> list = new Vector<Integer>();
-		for(Integer i : postings) {
-			if(list.isEmpty()) list.add(i);
-			else list.add(i - list.lastElement());
-		}
+		list.addElement(postings.get(0));
+		for(int i = 1; i < postings.size(); i++)
+			list.addElement(postings.get(i) - postings.get(i-1));
 		return list;
 	}
 	
