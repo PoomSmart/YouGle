@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Vector;
 
 public class VBIndex implements BaseIndex {
+	static int count = 0;
 	private static List<Integer> VBDecode(List<Byte> byteStream) {
 		LinkedList<Integer> numbers = new LinkedList<Integer>();
 		int n = 0;
@@ -51,8 +52,10 @@ public class VBIndex implements BaseIndex {
 				}
 				buffer.clear();
 			}
-			postings = inverseDocGap(numbers.subList(2, numbers.size()));
-			return new PostingList(numbers.getFirst(), postings);
+			if(!numbers.isEmpty()) {
+				postings = inverseDocGap(numbers.subList(2, numbers.size()));
+				return new PostingList(numbers.getFirst(), postings);
+			} else return null;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			return null;
