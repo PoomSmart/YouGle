@@ -104,13 +104,16 @@ public class Query {
 				return freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
 			}
 		});
-		PostingList prevList = readPosting(indexFile.getChannel(), termDict.get(tokens[0]));
-		PostingList currList = prevList;
-		List<Integer> list = prevList.getList();
+		PostingList currList = readPosting(indexFile.getChannel(), termDict.get(tokens[0]));
+		PostingList prevList = currList;
+		List<Integer> list = currList.getList();
 		for (int i = 1; i < tokens.length; i++) {
 			currList = readPosting(indexFile.getChannel(), termDict.get(tokens[i]));
-			if ((list = intersection(list, currList.getList())).isEmpty())
+			if (currList.getTermId() == prevList.getTermId())
+				continue;
+			if ((list = intersection(currList.getList(), list)).isEmpty())
 				return null;
+			prevList = currList;
 		}
 		return list;
 	}

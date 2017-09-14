@@ -1,4 +1,4 @@
 Query Test Result: [we are, stanford class, stanford students, very cool, the, a, the the, stanford computer science]:
-	Memory Used: 108.214136 MBs
-	Time Used: 0.772 secs
+	Memory Used: 206.142816 MBs
+	Time Used: 1.682 secs
 	No problem. Have a good day.

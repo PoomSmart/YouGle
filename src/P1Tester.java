@@ -138,16 +138,23 @@ public class P1Tester {
 	}
 
 	public static void main(String[] args) {
-		// Test the "small" dataset
-//		testIndex("Basic", "./datasets/small", "./index/small");
-//		testQuery("Basic", "./index/small", queriesSmall, "./output/small");
-
-		// Test the "large" dataset
-		 testIndex("Basic", "./datasets/large", "./index/large");
-		 testQuery("Basic", "./index/large", queriesLarge, "./output/large");
-
-		// Test the "citeseer" dataset
-//		 testIndex("Basic", "./datasets/citeseer", "./index/citeseer");
-//		 testQuery("Basic", "./index/citeseer", queriesCiteseer, "./output/citeseer");
+		String type = "Basic";
+		String dataset = "small";
+		String[] queries = null;
+		switch (dataset) {
+		case "small":
+			queries = queriesSmall;
+			break;
+		case "large":
+			queries = queriesLarge;
+			break;
+		case "citeseer":
+			queries = queriesCiteseer;
+			break;
+		}
+		String suffix = type.equals("Basic") ? "" : "+" + type;
+		testIndex(type, "./datasets/" + dataset, "./index/" + dataset + suffix);
+		testQuery(type, "./index/" + dataset + suffix, queries, "./output/" + dataset + suffix);
+		
 	}
 }
