@@ -94,26 +94,23 @@ public class Query {
 			System.err.println("Error: Query service must be initiated");
 		}
 		String[] tokens = query.trim().split("\\s+");
+		List<PostingList> postings = new Vector<PostingList>();
+		Integer termId;
 		for (String token : tokens) {
-			if (termDict.get(token) == null)
+			if ((termId = termDict.get(token)) == null)
 				return null;
+			postings.add(readPosting(indexFile.getChannel(), termId));
 		}
-		Arrays.sort(tokens, new Comparator<String>() {
+		Collections.sort(postings, new Comparator<PostingList>() {
 			@Override
-			public int compare(String t1, String t2) {
-				return freqDict.get(termDict.get(t1)) - freqDict.get(termDict.get(t2));
+			public int compare(PostingList p1, PostingList p2) {
+				return p1.getList().size() - p2.getList().size();
 			}
 		});
-		PostingList currList = readPosting(indexFile.getChannel(), termDict.get(tokens[0]));
-		PostingList prevList = currList;
-		List<Integer> list = currList.getList();
+		List<Integer> list = postings.get(0).getList();
 		for (int i = 1; i < tokens.length; i++) {
-			currList = readPosting(indexFile.getChannel(), termDict.get(tokens[i]));
-			if (currList.getTermId() == prevList.getTermId())
-				continue;
-			if ((list = intersection(currList.getList(), list)).isEmpty())
+			if ((list = intersection(postings.get(i).getList(), list)).isEmpty())
 				return null;
-			prevList = currList;
 		}
 		return list;
 	}
