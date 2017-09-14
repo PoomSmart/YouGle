@@ -152,7 +152,7 @@ public class P1Tester {
 			queries = queriesCiteseer;
 			break;
 		}
-		String suffix = type.equals("Basic") ? "" : "+" + type;
+		String suffix = type.equals("Basic") ? "" : "-" + type;
 		testIndex(type, "./datasets/" + dataset, "./index/" + dataset + suffix);
 		testQuery(type, "./index/" + dataset + suffix, queries, "./output/" + dataset + suffix);
 		
