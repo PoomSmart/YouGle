@@ -210,19 +210,18 @@ public class Index {
 			p1 = index.readPosting(bf1c);
 			p2 = index.readPosting(bf2c);
 			while (p1 != null && p2 != null) {
-				docs.clear();
-				idocs1 = p1.getList().iterator();
-				idocs2 = p2.getList().iterator();
 				if ((t1 = p1.getTermId()) == (t2 = p2.getTermId())) {
+					idocs1 = p1.getList().iterator();
+					idocs2 = p2.getList().iterator();
 					d1 = popNextOrNull(idocs1);
 					d2 = popNextOrNull(idocs2);
 					while (d1 != null && d2 != null) {
-						if (d1 < d2) {
+						if (d1.compareTo(d2) < 0) {
 							docs.add(d1);
 							d1 = popNextOrNull(idocs1);
 						} else {
 							docs.add(d2);
-							if (d2 >= d1)
+							if (d2.compareTo(d1) >= 0)
 								d1 = popNextOrNull(idocs1);
 							d2 = popNextOrNull(idocs2);
 						}
@@ -237,6 +236,7 @@ public class Index {
 					}
 					postingDict.put(t1, new Pair<Long, Integer>(mfc.position(), docs.size()));
 					index.writePosting(mfc, new PostingList(t1, docs));
+					docs.clear();
 					p1 = index.readPosting(bf1c);
 					p2 = index.readPosting(bf2c);
 				} else {
