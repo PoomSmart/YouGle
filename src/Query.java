@@ -116,7 +116,7 @@ public class Query {
 	}
 
 	public static List<Integer> intersection(List<Integer> list, List<Integer> next) {
-		List<Integer> newList = new Vector<Integer>();
+		Vector<Integer> newList = new Vector<Integer>();
 		Iterator<Integer> iterA = list.iterator();
 		Iterator<Integer> iterB = next.iterator();
 		Integer elementA = iterA.next();
@@ -139,7 +139,7 @@ public class Query {
 	String outputQueryResult(List<Integer> res) {
 		if (res == null || res.isEmpty())
 			return "no results found";
-		List<String> fileNames = new Vector<String>();
+		List<String> fileNames = new Vector<String>(res.size());
 		for (Integer docId : res) {
 			String fileName = docDict.get(docId);
 			fileNames.add(fileName);

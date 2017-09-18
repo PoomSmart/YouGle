@@ -31,7 +31,8 @@ public class VBIndex implements BaseIndex {
 				}
 				buffer.clear();
 			}
-			if(!numbers.isEmpty()) {
+			if (!numbers.isEmpty()) {
+				numbers.trimToSize();
 				List<Integer> postings = docGap(numbers.subList(2, numbers.size()), true);
 				return new PostingList(numbers.get(0), postings);
 			}
@@ -47,7 +48,8 @@ public class VBIndex implements BaseIndex {
 		List<Byte> encodedTermId = VBEncodeNumber(p.getTermId());
 		List<Byte> encodedDocFreq = VBEncodeNumber(p.getList().size());
 		List<Byte> encodedDocIds = VBEncode(docGap(p.getList(), false));
-		ByteBuffer byteBuffer = ByteBuffer.allocate(encodedTermId.size() + encodedDocFreq.size() + encodedDocIds.size());
+		ByteBuffer byteBuffer = ByteBuffer
+				.allocate(encodedTermId.size() + encodedDocFreq.size() + encodedDocIds.size());
 		for (Byte b : encodedTermId)
 			byteBuffer.put(b);
 		for (Byte b : encodedDocFreq)
@@ -63,11 +65,12 @@ public class VBIndex implements BaseIndex {
 	}
 
 	private static List<Byte> VBEncode(List<Integer> numbers) {
-		List<Byte> byteStream = new Vector<Byte>();
+		Vector<Byte> byteStream = new Vector<Byte>();
 		for (Integer number : numbers) {
 			List<Byte> bytes = VBEncodeNumber(number);
 			byteStream.addAll(bytes);
 		}
+		byteStream.trimToSize();
 		return byteStream;
 	}
 
