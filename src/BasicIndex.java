@@ -18,7 +18,7 @@ public class BasicIndex implements BaseIndex {
 			buffer = ByteBuffer.allocate(size * 4);
 			fc.read(buffer);
 			buffer.rewind();
-			List<Integer> docIds = new Vector<Integer>();
+			List<Integer> docIds = new Vector<Integer>(size);
 			while (size-- != 0)
 				docIds.add(buffer.getInt());
 			return new PostingList(termId, docIds);
