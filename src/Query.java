@@ -93,7 +93,7 @@ public class Query {
 		if (!running) {
 			System.err.println("Error: Query service must be initiated");
 		}
-		String[] tokens = query.trim().split("\\s+");
+		String[] tokens = query.split("\\s+");
 		List<PostingList> postings = new Vector<PostingList>();
 		Integer termId;
 		for (String token : tokens) {
@@ -109,7 +109,7 @@ public class Query {
 		});
 		List<Integer> list = postings.get(0).getList();
 		for (int i = 1; i < tokens.length; i++) {
-			if ((list = intersection(postings.get(i).getList(), list)).isEmpty())
+			if ((list = intersection(list, postings.get(i).getList())).isEmpty())
 				return null;
 		}
 		return list;

@@ -42,6 +42,7 @@ public class Index {
 	 * 
 	 */
 	private static void writePosting(FileChannel fc, PostingList posting) throws IOException {
+		postingDict.put(posting.getTermId(), new Pair<Long, Integer>(fc.position(), posting.getList().size()));
 		index.writePosting(fc, posting);
 	}
 
@@ -110,7 +111,6 @@ public class Index {
 
 		/* BSBI indexing algorithm */
 		File[] dirlist = rootdir.listFiles();
-		boolean singleBlock = dirlist.length == 1;
 
 		/* For each block */
 		for (File block : dirlist) {
@@ -140,7 +140,7 @@ public class Index {
 					for (String token : tokens) {
 						int termId = termDict.getOrDefault(token, -1);
 						if (termId == -1)
-							termDict.put(token, termId = 1 + termDict.size()); // assign term ID in increasing manner
+							termDict.put(token, termId = ++wordIdCounter); // assign term ID in increasing manner
 						Set<Integer> localDocIds = localTermDoc.get(termId);
 						if (localDocIds == null)
 							localTermDoc.put(termId, localDocIds = new TreeSet<Integer>());
@@ -165,9 +165,7 @@ public class Index {
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId : localTermDoc.keySet()) {
 				List<Integer> docIds = new Vector<Integer>(localTermDoc.get(termId));
-				if (singleBlock)
-					postingDict.put(termId, new Pair<Long, Integer>(bfcc.position(), docIds.size()));
-				index.writePosting(bfcc, new PostingList(termId, docIds));
+				writePosting(bfcc, new PostingList(termId, docIds));
 			}
 			localTermDoc.clear();
 			System.out.println("DEBUG: Write posting done");
@@ -210,18 +208,18 @@ public class Index {
 			p1 = index.readPosting(bf1c);
 			p2 = index.readPosting(bf2c);
 			while (p1 != null && p2 != null) {
+				idocs1 = p1.getList().iterator();
+				idocs2 = p2.getList().iterator();
 				if ((t1 = p1.getTermId()) == (t2 = p2.getTermId())) {
-					idocs1 = p1.getList().iterator();
-					idocs2 = p2.getList().iterator();
 					d1 = popNextOrNull(idocs1);
 					d2 = popNextOrNull(idocs2);
 					while (d1 != null && d2 != null) {
-						if (d1.compareTo(d2) < 0) {
+						if (d1 < d2) {
 							docs.add(d1);
 							d1 = popNextOrNull(idocs1);
 						} else {
 							docs.add(d2);
-							if (d2.compareTo(d1) >= 0)
+							if (d2 >= d1)
 								d1 = popNextOrNull(idocs1);
 							d2 = popNextOrNull(idocs2);
 						}
@@ -234,31 +232,26 @@ public class Index {
 						docs.add(d2);
 						d2 = popNextOrNull(idocs2);
 					}
-					postingDict.put(t1, new Pair<Long, Integer>(mfc.position(), docs.size()));
-					index.writePosting(mfc, new PostingList(t1, docs));
+					writePosting(mfc, new PostingList(t1, docs));
 					docs.clear();
 					p1 = index.readPosting(bf1c);
 					p2 = index.readPosting(bf2c);
 				} else {
 					if (t1 < t2) {
-						postingDict.put(t1, new Pair<Long, Integer>(mfc.position(), p1.getList().size()));
-						index.writePosting(mfc, p1);
+						writePosting(mfc, p1);
 						p1 = index.readPosting(bf1c);
 					} else {
-						postingDict.put(t2, new Pair<Long, Integer>(mfc.position(), p2.getList().size()));
-						index.writePosting(mfc, p2);
+						writePosting(mfc, p2);
 						p2 = index.readPosting(bf2c);
 					}
 				}
 			}
 			while (p1 != null) {
-				postingDict.put(p1.getTermId(), new Pair<Long, Integer>(mfc.position(), p1.getList().size()));
-				index.writePosting(mfc, p1);
+				writePosting(mfc, p1);
 				p1 = index.readPosting(bf1c);
 			}
 			while (p2 != null) {
-				postingDict.put(p2.getTermId(), new Pair<Long, Integer>(mfc.position(), p2.getList().size()));
-				index.writePosting(mfc, p2);
+				writePosting(mfc, p2);
 				p2 = index.readPosting(bf2c);
 			}
 			bf1.close();
@@ -275,7 +268,6 @@ public class Index {
 		indexFile.renameTo(new File(outputDirname, "corpus.index"));
 
 		BufferedWriter termWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "term.dict")));
-		wordIdCounter = termDict.size();
 		for (String term : termDict.keySet()) {
 			termWriter.write(term + "\t" + termDict.get(term) + "\n");
 		}
