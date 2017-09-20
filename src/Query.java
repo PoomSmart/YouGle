@@ -1,3 +1,9 @@
+/*
+ * Members (Section 1)
+ * 1. Kittinun Aukkapinyo	5888006
+ * 2. Chatchawan Kotarasu	5888084
+ * 3. Thatchapon Unprasert	5888220
+ */
 
 import java.io.BufferedReader;
 import java.io.File;

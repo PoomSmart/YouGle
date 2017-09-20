@@ -1,3 +1,10 @@
+/*
+ * Members (Section 1)
+ * 1. Kittinun Aukkapinyo	5888006
+ * 2. Chatchawan Kotarasu	5888084
+ * 3. Thatchapon Unprasert	5888220
+ */
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
