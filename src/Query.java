@@ -15,6 +15,7 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +103,7 @@ public class Query {
 			System.err.println("Error: Query service must be initiated");
 		}
 		String[] tokens = query.split("\\s+"); // split the query into tokens (terms)
-		List<PostingList> postings = new Vector<PostingList>(); // we have the list of posting list for all proper terms
+		List<Integer> termIds = new Vector<Integer>();
 		Integer termId;
 		for (String token : tokens) {
 			// It is possible that any term in the query does not exist in termDict (or our index file)
@@ -110,22 +111,23 @@ public class Query {
 			// document results to be printed
 			if ((termId = termDict.get(token)) == null)
 				return null;
-			// otherwise, read the posting using the termId we have from above and add that to the "posting list" list
-			postings.add(readPosting(indexFile.getChannel(), termId));
+			termIds.add(termId);
 		}
 		// For better posting lists intersection performance, we sort the list first by increasing document frequency,
 		// also known as the size of a posting
-		Collections.sort(postings, new Comparator<PostingList>() {
+		Collections.sort(termIds, new Comparator<Integer>() {
 			@Override
-			public int compare(PostingList p1, PostingList p2) {
-				return p1.getList().size() - p2.getList().size();
+			public int compare(Integer t1, Integer t2) {
+				return freqDict.get(t1) - freqDict.get(t2);
 			}
 		});
 		// Now we intersect from the beginning posting lists we have
 		// We can even abort the operation whenever the intersection result is empty
-		List<Integer> list = postings.get(0).getList();
-		for (int i = 1; i < tokens.length; i++) {
-			if ((list = intersection(list, postings.get(i).getList())).isEmpty())
+		FileChannel fc = indexFile.getChannel();
+		Iterator<Integer> termIdIterator = termIds.iterator();
+		List<Integer> list = readPosting(fc, termIdIterator.next()).getList();
+		while (termIdIterator.hasNext()) {
+			if ((list = intersection(list, readPosting(fc, termIdIterator.next()).getList())).isEmpty())
 				return null;
 		}
 		return list;
@@ -149,7 +151,7 @@ public class Query {
 		Integer elementA = iterA.next();
 		Integer elementB = iterB.next();
 		while (elementA != null && elementB != null) {
-			if (elementA == elementB) {
+			if (elementA.intValue() == elementB.intValue()) {
 				newList.add(elementA); // Added to the result only if this element occurs on both list
 				elementA = iterA.hasNext() ? iterA.next() : null;
 				elementB = iterB.hasNext() ? iterB.next() : null;

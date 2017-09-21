@@ -249,7 +249,7 @@ public class Index {
 							// Similar case as above but now d2 < d1
 							// Notice here we combine the case d2 < d1 and the case d2 == d1
 							docs.add(d2);
-							if (d2 == d1)
+							if (d2.intValue() == d1.intValue())
 								d1 = popNextOrNull(idocs1);
 							d2 = popNextOrNull(idocs2);
 						}
