@@ -7,13 +7,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.Vector;
 
 public class Index {
@@ -146,7 +147,7 @@ public class Index {
 			for (File file : filelist) {
 				++totalFileCount;
 				String fileName = block.getName() + "/" + file.getName();
-//				System.out.println(fileName); // TODO: change as code
+				// System.out.println(fileName); // TODO: change as code
 
 				// use pre-increment to ensure docID > 0
 				int docId = ++docIdCounter;
@@ -162,7 +163,7 @@ public class Index {
 							termDict.put(token, termId = ++wordIdCounter); // assign termId in increasing manner
 						Set<Integer> localDocIds = localTermDoc.get(termId);
 						if (localDocIds == null)
-							localTermDoc.put(termId, localDocIds = new TreeSet<Integer>());
+							localTermDoc.put(termId, localDocIds = new HashSet<Integer>());
 						localDocIds.add(docId); // add docId without worrying the duplication
 					}
 				}
@@ -189,6 +190,7 @@ public class Index {
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId : localTermDoc.keySet()) {
 				List<Integer> docIds = new Vector<Integer>(localTermDoc.get(termId));
+				Collections.sort(docIds);
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
 			System.out.println("DEBUG: Write posting done");
