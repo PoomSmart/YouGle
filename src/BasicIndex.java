@@ -1,3 +1,4 @@
+
 /*
  * Members (Section 1)
  * 1. Kittinun Aukkapinyo	5888006
@@ -16,12 +17,16 @@ public class BasicIndex implements BaseIndex {
 	@Override
 	public PostingList readPosting(FileChannel fc) {
 		try {
+			// We know in advance 8 bytes are of every posting (termId and document frequency as integers, 4 bytes each)
 			ByteBuffer buffer = ByteBuffer.allocate(8);
+			// If we can't read that, it means EOF and we have to stop
 			if (fc.read(buffer) == -1)
 				return null;
 			buffer.rewind();
+			// Get termId and document frequency, respectively
 			int termId = buffer.getInt();
 			int size = buffer.getInt();
+			// At this point, we figure out document frequency, we then allocate in the amount that just fits all docIds
 			buffer = ByteBuffer.allocate(size * 4);
 			fc.read(buffer);
 			buffer.rewind();
@@ -38,6 +43,8 @@ public class BasicIndex implements BaseIndex {
 	public void writePosting(FileChannel fc, PostingList p) {
 		List<Integer> docIds = p.getList();
 		int size = docIds.size();
+		// Every posting is of size 8 + 4 * (document frequency)
+		// Put all necessary values into the buffer then write to the file channel, then we are done
 		ByteBuffer buffer = ByteBuffer.allocate(8 + size * 4);
 		buffer.putInt(p.getTermId());
 		buffer.putInt(size);

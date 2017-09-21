@@ -1,3 +1,4 @@
+
 /*
  * Members (Section 1)
  * 1. Kittinun Aukkapinyo	5888006
@@ -43,6 +44,8 @@ public class Query {
 	 * posting list and read it back.
 	 */
 	private PostingList readPosting(FileChannel fc, int termId) throws IOException {
+		// here, we obtain term position from posDict for seeking by FileChannel.position(long) that also returns
+		// FileChannel object reference to be used in the standard readPosting() of such BaseIndex indexer
 		return index.readPosting(fc.position(posDict.get(termId)));
 	}
 
@@ -99,20 +102,28 @@ public class Query {
 		if (!running) {
 			System.err.println("Error: Query service must be initiated");
 		}
-		String[] tokens = query.split("\\s+");
-		List<PostingList> postings = new Vector<PostingList>();
+		String[] tokens = query.split("\\s+"); // split the query into tokens (terms)
+		List<PostingList> postings = new Vector<PostingList>(); // we have the list of posting list for all proper terms
 		Integer termId;
 		for (String token : tokens) {
+			// It is possible that any term in the query does not exist in termDict (or our index file)
+			// We can conclude without hesitation that none of documents contain this particular term, and in effect, no
+			// document results to be printed
 			if ((termId = termDict.get(token)) == null)
 				return null;
+			// otherwise, read the posting using the termId we have from above and add that to the "posting list" list
 			postings.add(readPosting(indexFile.getChannel(), termId));
 		}
+		// For better posting lists intersection performance, we sort the list first by increasing document frequency,
+		// also known as the size of a posting
 		Collections.sort(postings, new Comparator<PostingList>() {
 			@Override
 			public int compare(PostingList p1, PostingList p2) {
 				return p1.getList().size() - p2.getList().size();
 			}
 		});
+		// Now we intersect from the beginning posting lists we have
+		// We can even abort the operation whenever the intersection result is empty
 		List<Integer> list = postings.get(0).getList();
 		for (int i = 1; i < tokens.length; i++) {
 			if ((list = intersection(list, postings.get(i).getList())).isEmpty())
@@ -121,7 +132,18 @@ public class Query {
 		return list;
 	}
 
+	/**
+	 * Intersect two document ID lists
+	 * 
+	 * @param list
+	 * @param next
+	 * @return
+	 */
 	public static List<Integer> intersection(List<Integer> list, List<Integer> next) {
+		/*
+		 * Similar to merging algorithm, we have a list to hold the docIds result. But we don't always add an element to
+		 * the list
+		 */
 		Vector<Integer> newList = new Vector<Integer>();
 		Iterator<Integer> iterA = list.iterator();
 		Iterator<Integer> iterB = next.iterator();
@@ -129,13 +151,13 @@ public class Query {
 		Integer elementB = iterB.next();
 		while (elementA != null && elementB != null) {
 			if (elementA == elementB) {
-				newList.add(elementA);
+				newList.add(elementA); // Added to the result only if this element occurs on both list
 				elementA = iterA.hasNext() ? iterA.next() : null;
 				elementB = iterB.hasNext() ? iterB.next() : null;
 			} else if (elementA < elementB)
-				elementA = iterA.hasNext() ? iterA.next() : null;
+				elementA = iterA.hasNext() ? iterA.next() : null; // Increment the list A
 			else
-				elementB = iterB.hasNext() ? iterB.next() : null;
+				elementB = iterB.hasNext() ? iterB.next() : null; // Increment the list B
 		}
 		if (elementA == elementB && elementA != null && elementB != null)
 			newList.add(elementA);
@@ -143,8 +165,12 @@ public class Query {
 	}
 
 	String outputQueryResult(List<Integer> res) {
+		// This is when none of documents is matched with the query, thus no results found
 		if (res == null || res.isEmpty())
 			return "no results found";
+		// Now the easy part, iterate the docId list to get document names via docDict, add them to the docName list
+		// Sort that resulting list in lexicon orders and join all the elements to the answer string using newline
+		// character
 		List<String> fileNames = new Vector<String>(res.size());
 		for (Integer docId : res) {
 			String fileName = docDict.get(docId);

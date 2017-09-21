@@ -42,6 +42,11 @@ public class Index {
 	 * 
 	 */
 	private static void writePosting(FileChannel fc, PostingList posting) throws IOException {
+		/*
+		 * Posting dictionary update occurs whenever a posting is being written to disk. We can track where is the
+		 * current writing position and transform it to any term position here. The positions updated before merging
+		 * process may not be corrected, but definitely are going to once merging process is done.
+		 */
 		postingDict.put(posting.getTermId(), new Pair<Long, Integer>(fc.position(), posting.getList().size()));
 		index.writePosting(fc, posting);
 	}
@@ -121,6 +126,20 @@ public class Index {
 			File blockDir = new File(dataDirname, block.getName());
 			File[] filelist = blockDir.listFiles();
 
+			/*
+			 * localTermDoc represents termId -> {docIds} mapping, also known as posting lists. This mapping will be
+			 * saved onto disk as a block. In other words, we are to construct posting lists of each block. It is
+			 * possible that, while we are adding docId to any termId, docIds are duplicated as the same term occurs
+			 * multiple times in the same document. We fix that by defining the list of docIds as a set, thus no more
+			 * duplication. This is determined to be faster than a combination of using a conventional list data
+			 * structure plus checking if a docId already exists in the list using contains(), which takes O(n)
+			 * complexity. On the other hand, simply adding an element to a set requires just O(1).
+			 * 
+			 * The aforementioned approach would do only if we use HashSet. Since docIds are required to be sorted, we
+			 * instead use TreeSet. Even though additional sorting process will be taken whenever any element is added,
+			 * according to our test, using TreeSet is still faster than using conventional ArrayList + contains()
+			 * operation.
+			 */
 			Map<Integer, Set<Integer>> localTermDoc = new TreeMap<Integer, Set<Integer>>();
 
 			/* For each file */
@@ -140,11 +159,11 @@ public class Index {
 					for (String token : tokens) {
 						int termId = termDict.getOrDefault(token, -1);
 						if (termId == -1)
-							termDict.put(token, termId = ++wordIdCounter); // assign term ID in increasing manner
+							termDict.put(token, termId = ++wordIdCounter); // assign termId in increasing manner
 						Set<Integer> localDocIds = localTermDoc.get(termId);
 						if (localDocIds == null)
 							localTermDoc.put(termId, localDocIds = new TreeSet<Integer>());
-						localDocIds.add(docId);
+						localDocIds.add(docId); // add docId without worrying the duplication
 					}
 				}
 				reader.close();
@@ -161,13 +180,17 @@ public class Index {
 
 			/*
 			 * Write all posting lists for all terms to file (bfc)
+			 * 
+			 * Here, we take advantage of using localTermDoc mapping to iterate it by (sorted) termIds. There is a
+			 * corresponding docIds set for each termId, but what we need rather than a set is a list for constructing a
+			 * posting list object. We can simply convert a set to a list by overloading list's constructor as seen
+			 * below. Finally, we write all posting lists to a single block.
 			 */
 			System.out.println("DEBUG: Write posting start");
 			for (Integer termId : localTermDoc.keySet()) {
 				List<Integer> docIds = new Vector<Integer>(localTermDoc.get(termId));
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
-			localTermDoc.clear();
 			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();
@@ -205,25 +228,32 @@ public class Index {
 			FileChannel bf2c = bf2.getChannel();
 			FileChannel mfc = mf.getChannel();
 
+			// start off by reading the first posting list from each block
 			p1 = index.readPosting(bf1c);
 			p2 = index.readPosting(bf2c);
 			while (p1 != null && p2 != null) {
 				idocs1 = p1.getList().iterator();
 				idocs2 = p2.getList().iterator();
 				if ((t1 = p1.getTermId()) == (t2 = p2.getTermId())) {
+					// If two posting lists are of the same termId, we merge their docIds
 					d1 = popNextOrNull(idocs1);
 					d2 = popNextOrNull(idocs2);
 					while (d1 != null && d2 != null) {
 						if (d1 < d2) {
+							// Smaller docId is added first, then read the next one from the posting list #1
 							docs.add(d1);
 							d1 = popNextOrNull(idocs1);
 						} else {
+							// Similar case as above but now d2 < d1
+							// Notice here we combine the case d2 < d1 and the case d2 == d1
 							docs.add(d2);
-							if (d2 >= d1)
+							if (d2 == d1)
 								d1 = popNextOrNull(idocs1);
 							d2 = popNextOrNull(idocs2);
 						}
 					}
+					// Since the loop above operates until docId from either posting list is no more, we add the rest
+					// docIds from either list to the combined one here
 					while (d1 != null) {
 						docs.add(d1);
 						d1 = popNextOrNull(idocs1);
@@ -233,7 +263,7 @@ public class Index {
 						d2 = popNextOrNull(idocs2);
 					}
 					writePosting(mfc, new PostingList(t1, docs));
-					docs.clear();
+					docs.clear(); // we have to clear this helper list, because it is shared among blocks
 					p1 = index.readPosting(bf1c);
 					p2 = index.readPosting(bf2c);
 				} else {
@@ -246,6 +276,8 @@ public class Index {
 					}
 				}
 			}
+			// It is also possible that posting lists counts of the two blocks are not equivalent, we handle the rest
+			// here
 			while (p1 != null) {
 				writePosting(mfc, p1);
 				p1 = index.readPosting(bf1c);
