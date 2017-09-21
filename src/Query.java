@@ -102,7 +102,8 @@ public class Query {
 			System.err.println("Error: Query service must be initiated");
 		}
 		String[] tokens = query.split("\\s+"); // split the query into tokens (terms)
-		List<Integer> termIds = new Vector<Integer>();
+		List<PostingList> postings = new Vector<PostingList>();
+		FileChannel fc = indexFile.getChannel();
 		Integer termId;
 		for (String token : tokens) {
 			// It is possible that any term in the query does not exist in termDict (or our index file)
@@ -110,23 +111,22 @@ public class Query {
 			// document results to be printed
 			if ((termId = termDict.get(token)) == null)
 				return null;
-			termIds.add(termId);
+			postings.add(readPosting(fc, termId));
 		}
 		// For better posting lists intersection performance, we sort the list first by increasing document frequency,
 		// also known as the size of a posting
-		Collections.sort(termIds, new Comparator<Integer>() {
+		Collections.sort(postings, new Comparator<PostingList>() {
 			@Override
-			public int compare(Integer t1, Integer t2) {
-				return freqDict.get(t1) - freqDict.get(t2);
+			public int compare(PostingList p1, PostingList p2) {
+				return p1.getList().size() - p2.getList().size();
 			}
 		});
 		// Now we intersect from the beginning posting lists we have
 		// We can even abort the operation whenever the intersection result is empty
-		FileChannel fc = indexFile.getChannel();
-		Iterator<Integer> termIdIterator = termIds.iterator();
-		List<Integer> list = readPosting(fc, termIdIterator.next()).getList();
-		while (termIdIterator.hasNext()) {
-			if ((list = intersection(list, readPosting(fc, termIdIterator.next()).getList())).isEmpty())
+		Iterator<PostingList> postingsIterator = postings.iterator();
+		List<Integer> list = postingsIterator.next().getList();
+		while (postingsIterator.hasNext()) {
+			if ((list = intersection(list, postingsIterator.next().getList())).isEmpty())
 				return null;
 		}
 		return list;
@@ -170,12 +170,10 @@ public class Query {
 		// Sort that resulting list in lexicon orders and join all the elements to the answer string using newline
 		// character
 		List<String> fileNames = new Vector<String>(res.size());
-		for (Integer docId : res) {
-			String fileName = docDict.get(docId);
-			fileNames.add(fileName);
-		}
+		for (Integer docId : res)
+			fileNames.add(docDict.get(docId));
 		Collections.sort(fileNames);
-		return String.join("\n", fileNames) + "\n";
+		return String.join("\n", fileNames).concat("\n");
 	}
 
 	public static void main(String[] args) throws IOException {
