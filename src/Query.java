@@ -158,8 +158,6 @@ public class Query {
 			else
 				elementB = iterB.hasNext() ? iterB.next() : null; // Increment the list B
 		}
-		if (elementA == elementB && elementA != null && elementB != null)
-			newList.add(elementA);
 		return newList;
 	}
 
