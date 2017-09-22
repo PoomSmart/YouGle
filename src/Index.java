@@ -200,6 +200,7 @@ public class Index {
 				Collections.sort(docIds);
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
+			localTermDoc.clear();
 			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();

@@ -33,6 +33,7 @@ public class BasicIndex implements BaseIndex {
 			List<Integer> docIds = new Vector<Integer>(size);
 			while (size-- != 0)
 				docIds.add(buffer.getInt());
+			buffer.clear();
 			return new PostingList(termId, docIds);
 		} catch (IOException e) {
 			return null;
@@ -53,6 +54,7 @@ public class BasicIndex implements BaseIndex {
 		buffer.flip();
 		try {
 			fc.write(buffer);
+			buffer.clear();
 		} catch (IOException e) {
 		}
 	}
