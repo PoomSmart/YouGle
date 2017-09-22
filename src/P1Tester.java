@@ -152,9 +152,9 @@ public class P1Tester {
 			queries = queriesCiteseer;
 			break;
 		}
-		String suffix = type.equals("Basic") ? "" : "-" + type;
-		testIndex(type, "./datasets/" + dataset, "./index/" + dataset + suffix);
-		testQuery(type, "./index/" + dataset + suffix, queries, "./output/" + dataset + suffix);
+		String suffix = type.equals("Basic") ? "" : "-".concat(type);
+		testIndex(type, "./datasets/".concat(dataset), "./index/".concat(dataset).concat(suffix));
+		testQuery(type, "./index/".concat(dataset).concat(suffix), queries, "./output/".concat(dataset).concat(suffix));
 		
 	}
 }

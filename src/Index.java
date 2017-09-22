@@ -1,4 +1,11 @@
 
+/*
+ * Members (Section 1)
+ * 1. Kittinun Aukkapinyo	5888006
+ * 2. Chatchawan Kotarasu	5888084
+ * 3. Thatchapon Unprasert	5888220
+ */
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -221,7 +228,7 @@ public class Index {
 				System.err.println("Create new block failure.");
 				return -1;
 			}
-			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " start");
+			System.out.println("DEBUG: merging ".concat(b1.getName()).concat("+").concat(b2.getName()).concat(" start"));
 
 			RandomAccessFile bf1 = new RandomAccessFile(b1, "r");
 			RandomAccessFile bf2 = new RandomAccessFile(b2, "r");
@@ -291,7 +298,7 @@ public class Index {
 			bf1.close();
 			bf2.close();
 			mf.close();
-			System.out.println("DEBUG: merging " + b1.getName() + "+" + b2.getName() + " done");
+			System.out.println("DEBUG: merging ".concat(b1.getName()).concat("+").concat(b2.getName()).concat(" done"));
 			b1.delete();
 			b2.delete();
 			blockQueue.add(combfile);
