@@ -14,7 +14,6 @@ import java.util.Vector;
 
 public class BasicIndex implements BaseIndex {
 
-	@Override
 	public PostingList readPosting(FileChannel fc) {
 		try {
 			// We know in advance 8 bytes are of every posting (termId and document frequency as integers, 4 bytes each)
@@ -33,13 +32,14 @@ public class BasicIndex implements BaseIndex {
 			List<Integer> docIds = new Vector<Integer>(size);
 			while (size-- != 0)
 				docIds.add(buffer.getInt());
+			buffer.clear();
+			buffer = null;
 			return new PostingList(termId, docIds);
 		} catch (IOException e) {
 			return null;
 		}
 	}
 
-	@Override
 	public void writePosting(FileChannel fc, PostingList p) {
 		List<Integer> docIds = p.getList();
 		int size = docIds.size();
@@ -53,6 +53,9 @@ public class BasicIndex implements BaseIndex {
 		buffer.flip();
 		try {
 			fc.write(buffer);
+			buffer.clear();
+			buffer = null;
+
 		} catch (IOException e) {
 		}
 	}

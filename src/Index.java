@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -124,6 +125,22 @@ public class Index {
 
 		/* BSBI indexing algorithm */
 		File[] dirlist = rootdir.listFiles();
+		
+		/*
+		 * localTermDoc represents termId -> {docIds} mapping, also known as posting lists. This mapping will be
+		 * saved onto disk as a block. In other words, we are to construct posting lists of each block. It is
+		 * possible that, while we are adding docId to any termId, docIds are duplicated as the same term occurs
+		 * multiple times in the same document. We fix that by defining the list of docIds as a set, thus no more
+		 * duplication. This is determined to be faster than a combination of using a conventional list data
+		 * structure plus checking if a docId already exists in the list using contains(), which takes O(n)
+		 * complexity. On the other hand, simply adding an element to a set requires just O(1).
+		 * 
+		 * The aforementioned approach would do only if we use HashSet. Since docIds are required to be sorted, we
+		 * instead use TreeSet. Even though additional sorting process will be taken whenever any element is added,
+		 * according to our test, using TreeSet is still faster than using conventional ArrayList + contains()
+		 * operation.
+		 */
+		Map<Integer, Set<Integer>> localTermDoc = new HashMap<Integer, Set<Integer>>();
 
 		/* For each block */
 		for (File block : dirlist) {
@@ -133,22 +150,6 @@ public class Index {
 
 			File blockDir = new File(dataDirname, block.getName());
 			File[] filelist = blockDir.listFiles();
-
-			/*
-			 * localTermDoc represents termId -> {docIds} mapping, also known as posting lists. This mapping will be
-			 * saved onto disk as a block. In other words, we are to construct posting lists of each block. It is
-			 * possible that, while we are adding docId to any termId, docIds are duplicated as the same term occurs
-			 * multiple times in the same document. We fix that by defining the list of docIds as a set, thus no more
-			 * duplication. This is determined to be faster than a combination of using a conventional list data
-			 * structure plus checking if a docId already exists in the list using contains(), which takes O(n)
-			 * complexity. On the other hand, simply adding an element to a set requires just O(1).
-			 * 
-			 * The aforementioned approach would do only if we use HashSet. Since docIds are required to be sorted, we
-			 * instead use TreeSet. Even though additional sorting process will be taken whenever any element is added,
-			 * according to our test, using TreeSet is still faster than using conventional ArrayList + contains()
-			 * operation.
-			 */
-			Map<Integer, Set<Integer>> localTermDoc = new TreeMap<Integer, Set<Integer>>();
 
 			/* For each file */
 			for (File file : filelist) {
@@ -173,6 +174,7 @@ public class Index {
 							localTermDoc.put(termId, localDocIds = new HashSet<Integer>());
 						localDocIds.add(docId); // add docId without worrying the duplication
 					}
+					tokens = null;
 				}
 				reader.close();
 			}
@@ -195,11 +197,18 @@ public class Index {
 			 * below. Finally, we write all posting lists to a single block.
 			 */
 			System.out.println("DEBUG: Write posting start");
-			for (Integer termId : localTermDoc.keySet()) {
-				List<Integer> docIds = new Vector<Integer>(localTermDoc.get(termId));
+			List<Integer> termIds = new Vector<Integer>(localTermDoc.keySet());
+			Collections.sort(termIds);
+			for (Integer termId : termIds) {
+				List<Integer> docIds = new Vector<Integer>(localTermDoc.remove(termId));
 				Collections.sort(docIds);
 				writePosting(bfcc, new PostingList(termId, docIds));
 			}
+
+			termIds.clear();
+			termIds = null;
+			localTermDoc.clear();
+
 			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();
@@ -256,7 +265,7 @@ public class Index {
 							// Similar case as above but now d2 < d1
 							// Notice here we combine the case d2 < d1 and the case d2 == d1
 							docs.add(d2);
-							if (d2.intValue() == d1.intValue())
+							if (d2.equals(d1))
 								d1 = popNextOrNull(idocs1);
 							d2 = popNextOrNull(idocs2);
 						}
@@ -284,6 +293,8 @@ public class Index {
 						p2 = index.readPosting(bf2c);
 					}
 				}
+				idocs1 = null;
+				idocs2 = null;
 			}
 			// It is also possible that posting lists counts of the two blocks are not equivalent, we handle the rest
 			// here
@@ -303,6 +314,8 @@ public class Index {
 			b2.delete();
 			blockQueue.add(combfile);
 		}
+		docs = null;
+		localTermDoc = null;
 
 		/* Dump constructed index back into file system */
 		File indexFile = blockQueue.removeFirst();

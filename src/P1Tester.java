@@ -139,7 +139,7 @@ public class P1Tester {
 
 	public static void main(String[] args) {
 		String type = "Basic";
-		String dataset = "small";
+		String dataset = "large";
 		String[] queries = null;
 		switch (dataset) {
 		case "small":
@@ -154,7 +154,7 @@ public class P1Tester {
 		}
 		String suffix = type.equals("Basic") ? "" : "-".concat(type);
 		testIndex(type, "./datasets/".concat(dataset), "./index/".concat(dataset).concat(suffix));
-		testQuery(type, "./index/".concat(dataset).concat(suffix), queries, "./output/".concat(dataset).concat(suffix));
+		//testQuery(type, "./index/".concat(dataset).concat(suffix), queries, "./output/".concat(dataset).concat(suffix));
 		
 	}
 }
