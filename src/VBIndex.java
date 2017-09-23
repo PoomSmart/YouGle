@@ -19,9 +19,10 @@ public class VBIndex implements BaseIndex {
 	@Override
 	public PostingList readPosting(FileChannel fc) {
 		try {
-			ByteBuffer buffer = ByteBuffer.allocate(1); // TODO: possible overkill
+			ByteBuffer buffer = ByteBuffer.allocate(1);
 			Vector<Integer> numbers = new Vector<Integer>();
 			int n = 0, docFreq = 0;
+			// Start changing from gaps to real numbers, stored in a list
 			while (fc.read(buffer) != -1) {
 				buffer.rewind();
 				Byte b = buffer.get();
@@ -52,6 +53,7 @@ public class VBIndex implements BaseIndex {
 
 	@Override
 	public void writePosting(FileChannel fc, PostingList p) {
+		// We basically encode every integer before writing to file
 		List<Byte> encodedTermId = VBEncodeNumber(p.getTermId());
 		List<Byte> encodedDocFreq = VBEncodeNumber(p.getList().size());
 		List<Byte> encodedDocIds = VBEncode(docGap(p.getList(), false));
@@ -71,6 +73,12 @@ public class VBIndex implements BaseIndex {
 		}
 	}
 
+	/**
+	 * Encode the given list of document gaps
+	 * 
+	 * @param numbers
+	 * @return
+	 */
 	private static List<Byte> VBEncode(List<Integer> numbers) {
 		Vector<Byte> byteStream = new Vector<Byte>();
 		for (Integer number : numbers) {
@@ -81,6 +89,12 @@ public class VBIndex implements BaseIndex {
 		return byteStream;
 	}
 
+	/**
+	 * Encode a number using variable byte method
+	 * 
+	 * @param number
+	 * @return
+	 */
 	private static List<Byte> VBEncodeNumber(int number) {
 		LinkedList<Byte> bytes = new LinkedList<Byte>();
 		while (true) {

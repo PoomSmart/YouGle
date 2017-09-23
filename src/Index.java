@@ -125,20 +125,23 @@ public class Index {
 
 		/* BSBI indexing algorithm */
 		File[] dirlist = rootdir.listFiles();
-		
+
 		/*
-		 * localTermDoc represents termId -> {docIds} mapping, also known as posting lists. This mapping will be
-		 * saved onto disk as a block. In other words, we are to construct posting lists of each block. It is
-		 * possible that, while we are adding docId to any termId, docIds are duplicated as the same term occurs
-		 * multiple times in the same document. We fix that by defining the list of docIds as a set, thus no more
-		 * duplication. This is determined to be faster than a combination of using a conventional list data
-		 * structure plus checking if a docId already exists in the list using contains(), which takes O(n)
-		 * complexity. On the other hand, simply adding an element to a set requires just O(1).
+		 * localTermDoc represents termId -> {docIds} mapping, also known as posting lists. This mapping will be saved
+		 * onto disk as a block. In other words, we are to construct posting lists of each block. It is possible that,
+		 * while we are adding docId to any termId, docIds are duplicated as the same term occurs multiple times in the
+		 * same document. We fix that by defining the list of docIds as a set, thus no more duplication. This is
+		 * determined to be faster than a combination of using a conventional list data structure plus checking if a
+		 * docId already exists in the list using contains(), which takes O(n) complexity. On the other hand, simply
+		 * adding an element to a set requires just O(1).
 		 * 
-		 * The aforementioned approach would do only if we use HashSet. Since docIds are required to be sorted, we
-		 * instead use TreeSet. Even though additional sorting process will be taken whenever any element is added,
-		 * according to our test, using TreeSet is still faster than using conventional ArrayList + contains()
-		 * operation.
+		 * The aforementioned approach would do only if we use HashSet. Since docIds are required to be sorted, we must
+		 * later sort this set. We exhibit more memory at sorting because we have to create a list from the set then
+		 * sort it. According to our test, using HashSet + sorting is much faster than using conventional ArrayList +
+		 * contains() operation.
+		 * 
+		 * Normally, this mapping is block-dependent. We anyway declare the mapping here as we can always clear it
+		 * before processing the next block.
 		 */
 		Map<Integer, Set<Integer>> localTermDoc = new HashMap<Integer, Set<Integer>>();
 
@@ -193,8 +196,8 @@ public class Index {
 			 * 
 			 * Here, we take advantage of using localTermDoc mapping to iterate it by (sorted) termIds. There is a
 			 * corresponding docIds set for each termId, but what we need rather than a set is a list for constructing a
-			 * posting list object. We can simply convert a set to a list by overloading list's constructor as seen
-			 * below. Finally, we write all posting lists to a single block.
+			 * posting list object. We can simply convert a set to a list by overloading list (Vector)'s constructor as
+			 * seen below. Finally, we write all posting lists to a single block.
 			 */
 			System.out.println("DEBUG: Write posting start");
 			List<Integer> termIds = new Vector<Integer>(localTermDoc.keySet());
@@ -236,7 +239,8 @@ public class Index {
 				System.err.println("Create new block failure.");
 				return -1;
 			}
-			System.out.println("DEBUG: merging ".concat(b1.getName()).concat("+").concat(b2.getName()).concat(" start"));
+			System.out
+					.println("DEBUG: merging ".concat(b1.getName()).concat("+").concat(b2.getName()).concat(" start"));
 
 			RandomAccessFile bf1 = new RandomAccessFile(b1, "r");
 			RandomAccessFile bf2 = new RandomAccessFile(b2, "r");
