@@ -208,7 +208,6 @@ public class Index {
 			termIds.clear();
 			termIds = null;
 			localTermDoc.clear();
-
 			System.out.println("DEBUG: Write posting done");
 
 			bfc.close();

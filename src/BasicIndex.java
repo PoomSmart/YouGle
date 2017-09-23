@@ -55,7 +55,6 @@ public class BasicIndex implements BaseIndex {
 			fc.write(buffer);
 			buffer.clear();
 			buffer = null;
-
 		} catch (IOException e) {
 		}
 	}
