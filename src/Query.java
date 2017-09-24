@@ -173,6 +173,8 @@ public class Query {
 		for (Integer docId : res)
 			fileNames.add(docDict.get(docId));
 		Collections.sort(fileNames);
+		for (String fileName : fileNames)
+			System.out.println(fileName);
 		return String.join("\n", fileNames).concat("\n");
 	}
 
